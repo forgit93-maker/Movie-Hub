@@ -191,7 +191,7 @@ const Details: React.FC = () => {
                 className="p-2 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-primary transition-all duration-300"
                 title="Share this movie"
              >
-                <Share2 size={18} />
+                <Share2 size={20} />
              </button>
            </div>
 
