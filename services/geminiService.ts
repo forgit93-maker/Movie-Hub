@@ -1,7 +1,7 @@
-import { GoogleGenAI, Chat } from "@google/genai";
+import { GoogleGenerativeAI, ChatSession } from "@google/generative-ai";
 
-let chatSession: Chat | null = null;
-let genAI: GoogleGenAI | null = null;
+let chatSession: ChatSession | null = null;
+let genAI: GoogleGenerativeAI | null = null;
 
 export const initGemini = () => {
   const apiKey = typeof process !== "undefined" ? process.env?.API_KEY : undefined;
@@ -10,17 +10,30 @@ export const initGemini = () => {
     console.warn("Gemini API Key is missing.");
     return;
   }
-  genAI = new GoogleGenAI({ apiKey });
   
-  chatSession = genAI.chats.create({
-    model: 'gemini-3-flash-preview',
-    config: {
-      systemInstruction: `You are a helpful and knowledgeable movie and TV series assistant for a website called "MOVIE HUB". 
-      Your goal is to help users find movies, provide facts, explain plots (without spoilers unless asked), and recommend content based on their mood or preferences.
-      Keep answers concise and engaging. If you mention a movie, try to include the release year.
-      You are witty and love cinema.`,
-    },
-  });
+  try {
+    genAI = new GoogleGenerativeAI(apiKey);
+    
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: `You are a helpful and knowledgeable movie and TV series assistant for a website called "MOVIE HUB". 
+        Your goal is to help users find movies, provide facts, explain plots (without spoilers unless asked), and recommend content based on their mood or preferences.
+        Keep answers concise and engaging. If you mention a movie, try to include the release year.
+        You are witty and love cinema.` }]
+      }
+    });
+    
+    chatSession = model.startChat({
+      history: [],
+      generationConfig: {
+        maxOutputTokens: 1000,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to initialize Gemini:", error);
+  }
 };
 
 export const sendMessageToGemini = async (message: string): Promise<string> => {
@@ -33,8 +46,9 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
   }
 
   try {
-    const response = await chatSession.sendMessage({ message });
-    return response.text || "I'm speechless!";
+    const result = await chatSession.sendMessage(message);
+    const response = await result.response;
+    return response.text();
   } catch (error) {
     console.error("Gemini Error:", error);
     return "I had some trouble thinking about that. Try again?";
