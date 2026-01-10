@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Youtube, X as XIcon, Mail } from 'lucide-react';
+import { Facebook, Instagram, Youtube, X as XIcon } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -9,8 +9,8 @@ const Footer: React.FC = () => {
   const closeModal = () => setActiveModal(null);
 
   return (
-    <footer className="bg-gray-50 dark:bg-black text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-white/10 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+    <footer className="bg-gray-50 dark:bg-black text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-white/10 transition-colors duration-300 pb-24 md:pb-16">
+      <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           
           {/* Brand Section */}
@@ -81,16 +81,16 @@ const Footer: React.FC = () => {
             <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-4">Disclaimer</h3>
             <div className="mt-2 text-xs text-gray-500">
                <p className="leading-relaxed">
-                 MOVIE HUB does not host any files. We link to 3rd party servers. 
-                 <br /><br />
-                 <a href="mailto:Moviemasterastermdhub@gmail.com" className="text-primary font-bold hover:underline">Contact: EMAIL</a>
+                 MOVIE HUB does not host any files. We link to 3rd party servers.
                </p>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-gray-200 dark:border-white/10 mt-12 pt-8 text-center text-xs text-gray-500">
-          <p>&copy; 2026 MOVIE HUB Inc. All rights reserved.</p>
+        {/* Copyright Section */}
+        <div className="border-t border-gray-200 dark:border-white/10 mt-12 pt-8 text-center text-xs text-gray-500 flex flex-col items-center gap-2">
+          <p>&copy; 2026 MOVIE HUB All Rights Reserved.</p>
+          <p className="font-semibold text-gray-400 tracking-wider">Powered By MASTER-MD</p>
         </div>
       </div>
 
