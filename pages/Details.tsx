@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import YouTube from 'react-youtube';
+import { Helmet } from 'react-helmet-async';
 import { tmdbService, getImageUrl } from '../services/tmdb';
 import { MovieDetails as MovieDetailsType } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Star, Clock, PlayCircle, ArrowLeft, Plus, Check, X, ExternalLink } from 'lucide-react';
+import { Star, Clock, PlayCircle, ArrowLeft, Plus, Check, X, ExternalLink, Share2, Copy, Facebook } from 'lucide-react';
 import MovieCard from '../components/MovieCard';
 
 const Details: React.FC = () => {
@@ -12,8 +13,14 @@ const Details: React.FC = () => {
   const [data, setData] = useState<MovieDetailsType | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentBackdropIndex, setCurrentBackdropIndex] = useState(0);
+  
+  // Modal States
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  
   const [videoError, setVideoError] = useState(false);
+  const [copySuccess, setCopySuccess] = useState('');
+  
   const { user, addToWatchlist, removeFromWatchlist, isWatchlisted } = useStore();
 
   useEffect(() => {
@@ -52,6 +59,7 @@ const Details: React.FC = () => {
   const director = data.credits.crew.find(c => c.job === "Director")?.name;
   const year = new Date(data.release_date || data.first_air_date || '').getFullYear();
   const inWatchlist = isWatchlisted(data.id);
+  const displayTitle = data.title || data.name || 'Untitled';
   
   const backdropImages = data.images.backdrops.length > 0 
     ? data.images.backdrops.slice(0, 5) 
@@ -64,6 +72,30 @@ const Details: React.FC = () => {
     }
     if (inWatchlist) removeFromWatchlist(data.id);
     else addToWatchlist(data.id);
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: displayTitle,
+      text: `Check out ${displayTitle} on Movie Hub! \n${data.overview.substring(0, 100)}...`,
+      url: window.location.href
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.log('Share canceled');
+      }
+    } else {
+      setIsShareOpen(true);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopySuccess('Link copied!');
+    setTimeout(() => setCopySuccess(''), 2000);
   };
 
   const opts: any = {
@@ -81,6 +113,25 @@ const Details: React.FC = () => {
   return (
     <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white pb-20 md:pb-0 relative transition-colors duration-300">
       
+      {/* Dynamic Meta Tags for Social Sharing */}
+      <Helmet>
+        <title>{`${displayTitle} (${year}) - MOVIE HUB`}</title>
+        <meta name="description" content={data.overview} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:title" content={`${displayTitle} - MOVIE HUB`} />
+        <meta property="og:description" content={data.overview} />
+        <meta property="og:image" content={getImageUrl(data.backdrop_path, 'original')} />
+        <meta property="og:url" content={window.location.href} />
+        <meta property="og:type" content={type === 'movie' ? 'video.movie' : 'video.tv_show'} />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${displayTitle} - MOVIE HUB`} />
+        <meta name="twitter:description" content={data.overview} />
+        <meta name="twitter:image" content={getImageUrl(data.backdrop_path, 'original')} />
+      </Helmet>
+
       {/* Hero Section */}
       <div className="relative w-full h-[60vh] md:h-[70vh] overflow-hidden group bg-black">
         <Link 
@@ -107,7 +158,7 @@ const Details: React.FC = () => {
         
         <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-10">
            <h1 className="text-3xl md:text-5xl font-bold leading-tight drop-shadow-2xl mb-3 md:mb-4 text-white">
-             {data.title || data.name} <span className="text-gray-300 font-light text-xl md:text-3xl">({year})</span>
+             {displayTitle} <span className="text-gray-300 font-light text-xl md:text-3xl">({year})</span>
            </h1>
            <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-gray-200">
               <span className="flex items-center text-yellow-400 font-bold bg-black/40 px-2 py-1 rounded backdrop-blur-sm border border-white/10">
@@ -130,7 +181,20 @@ const Details: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-10">
         <div className="max-w-4xl">
-           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-2">Overview</h3>
+           {/* Overview Header with Cute Share Icon */}
+           <div className="flex items-center justify-between mb-2">
+             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">Overview</h3>
+             
+             {/* Cute Share Icon */}
+             <button 
+                onClick={handleShare}
+                className="p-2.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-all duration-300 transform hover:scale-110 flex items-center justify-center group shadow-sm border border-primary/10"
+                title="Share this movie"
+             >
+                <Share2 size={20} className="group-hover:rotate-12 transition-transform duration-300" />
+             </button>
+           </div>
+
            <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-base md:text-lg font-light">
              {data.overview}
            </p>
@@ -200,6 +264,7 @@ const Details: React.FC = () => {
         )}
       </div>
 
+      {/* Trailer Modal */}
       {isTrailerOpen && trailer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in-up">
            <div className="absolute inset-0" onClick={() => setIsTrailerOpen(false)}></div>
@@ -250,6 +315,53 @@ const Details: React.FC = () => {
                )}
              </div>
            </div>
+        </div>
+      )}
+
+      {/* Share Modal Fallback */}
+      {isShareOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in-up">
+          <div className="absolute inset-0" onClick={() => setIsShareOpen(false)}></div>
+          <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-xl p-6 shadow-2xl relative z-10">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Share this {type === 'movie' ? 'Movie' : 'TV Show'}</h3>
+            
+            <div className="grid grid-cols-1 gap-3">
+              <a 
+                href={`https://wa.me/?text=${encodeURIComponent(`Check out ${displayTitle} on Movie Hub! ${window.location.href}`)}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 p-3 bg-[#25D366] text-white rounded-lg font-bold hover:opacity-90 transition"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="css-i6dzq1"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                WhatsApp
+              </a>
+              
+              <a 
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 p-3 bg-[#1877F2] text-white rounded-lg font-bold hover:opacity-90 transition"
+              >
+                <Facebook size={20} />
+                Facebook
+              </a>
+
+              <button 
+                onClick={copyToClipboard}
+                className="flex items-center justify-center gap-2 p-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+              >
+                {copySuccess ? <Check size={20} /> : <Copy size={20} />}
+                {copySuccess || 'Copy Link'}
+              </button>
+            </div>
+
+            <button 
+              onClick={() => setIsShareOpen(false)} 
+              className="mt-6 w-full py-2 text-gray-500 hover:text-gray-900 dark:hover:text-white text-sm"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -86,6 +86,7 @@ const Account: React.FC = () => {
       setTimeout(() => {
         setIsSettingsOpen(false);
         setSuccess(null);
+        // Optional: Refresh page or rely on Firestore snapshot listener in StoreContext to update UI
       }, 1500);
 
     } catch (err: any) {
