@@ -81,8 +81,10 @@ export interface Review {
 export interface User {
   id: string;
   name: string;
+  username: string; // New
   email: string;
   photoURL?: string | null;
+  language?: 'en' | 'si' | 'ta'; // New
   watchlist: number[];
   favorites: number[];
 }
