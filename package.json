@@ -16,7 +16,7 @@
     "lucide-react": "0.344.0",
     "axios": "1.6.7",
     "react-youtube": "10.1.0",
-    "firebase": "^10.8.0",
+    "firebase": "latest",
     "react-helmet-async": "2.0.4"
   },
   "devDependencies": {
