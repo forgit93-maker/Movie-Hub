@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
   const closeModal = () => setActiveModal(null);
 
   return (
-    <footer className="bg-gray-50 dark:bg-black text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-white/10 transition-colors duration-300 pb-24 md:pb-16">
+    <footer className="bg-gray-50 dark:bg-black text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-white/10 transition-colors duration-300 pb-28 md:pb-16">
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           
@@ -83,9 +83,8 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Copyright Section */}
-        <div className="border-t border-gray-200 dark:border-white/10 mt-12 pt-8 text-center text-xs text-gray-500 flex flex-col items-center gap-1">
-          <p>&copy;2026 MOVIE HUB All Rights Reserved.</p>
-          <p className="font-semibold text-gray-400">Powered By MASTER-MD</p>
+        <div className="border-t border-gray-200 dark:border-white/10 mt-12 pt-8 text-center text-xs text-gray-500">
+          <p>&copy;2026 MOVIE HUB All Rights Reserved. | Powered By MASTER-MD</p>
         </div>
       </div>
 
