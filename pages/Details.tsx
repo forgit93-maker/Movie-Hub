@@ -182,16 +182,16 @@ const Details: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-10">
         <div className="max-w-4xl">
            {/* Overview Header with Cute Share Icon */}
-           <div className="flex items-center justify-between mb-2">
+           <div className="flex items-center justify-between mb-4">
              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">Overview</h3>
              
              {/* Cute Share Icon */}
              <button 
                 onClick={handleShare}
-                className="p-2.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-all duration-300 transform hover:scale-110 flex items-center justify-center group shadow-sm border border-primary/10"
+                className="p-2 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-primary transition-all duration-300"
                 title="Share this movie"
              >
-                <Share2 size={20} className="group-hover:rotate-12 transition-transform duration-300" />
+                <Share2 size={18} />
              </button>
            </div>
 
