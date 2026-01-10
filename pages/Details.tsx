@@ -7,11 +7,6 @@ import { MovieDetails as MovieDetailsType } from '../types';
 import { useStore } from '../context/StoreContext';
 import { Star, Clock, PlayCircle, ArrowLeft, Plus, Check, X, ExternalLink, Share2, Copy, Facebook } from 'lucide-react';
 import MovieCard from '../components/MovieCard';
-// IoShareSocialOutline is from react-icons/io5, but we are using lucide-react in this project. 
-// Mapping user request for IoShareSocialOutline to Share2 from lucide-react to maintain consistency without adding new deps, 
-// or I can import it if I added react-icons. 
-// Since user asked for IoShareSocialOutline specifically but lucide is used everywhere else, sticking to Lucide's Share2 
-// keeps the bundle smaller. However, I will use Share2 as the icon but style it "cute" as requested.
 
 const Details: React.FC = () => {
   const { type, id } = useParams<{ type: 'movie' | 'tv'; id: string }>();
