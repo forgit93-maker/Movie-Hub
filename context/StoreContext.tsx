@@ -40,12 +40,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
           email: firebaseUser.email || '',
           photoURL: firebaseUser.photoURL,
-          watchlist: [], // In a real app, fetch this from Firestore
+          watchlist: [], 
           favorites: []
         };
         setUser(newUser);
         
-        // Load local watchlist as a temporary measure (ideally syncs with Firestore)
+        // Load local watchlist 
         const storedWatchlist = localStorage.getItem(`moviehub_watchlist_${firebaseUser.uid}`);
         if (storedWatchlist) {
             try {
@@ -88,11 +88,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const googleSignIn = async () => {
-    const result = await signInWithPopup(auth, googleProvider);
-    if (result.user.email && !result.user.email.toLowerCase().endsWith('@gmail.com')) {
-      // If the Google account is not a gmail address, sign them out immediately
-      await signOut(auth);
-      throw new Error("Only @gmail.com addresses are allowed.");
+    try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const email = result.user.email;
+        
+        if (email && !email.toLowerCase().endsWith('@gmail.com')) {
+          // If not a gmail account, delete the user instance from auth immediately (cleanup) and sign out
+          const userToDelete = auth.currentUser;
+          if (userToDelete) {
+             await userToDelete.delete().catch(async () => {
+                 // Fallback if delete fails (e.g. requires re-auth), just sign out
+                 await signOut(auth);
+             });
+          }
+          throw new Error("Only @gmail.com addresses are allowed.");
+        }
+    } catch (error: any) {
+        if (error.code === 'auth/popup-closed-by-user') {
+            throw new Error("Sign in cancelled.");
+        }
+        throw error;
     }
   };
 
