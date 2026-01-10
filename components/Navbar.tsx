@@ -59,16 +59,13 @@ const Navbar: React.FC = () => {
 
   const toggleDesktopSearch = () => {
     if (isDesktopSearchOpen) {
-      // If open and has text, submit
       if (searchQuery.trim()) {
         navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
         setIsDesktopSearchOpen(false); 
       } else {
-        // If open and empty, close
         setIsDesktopSearchOpen(false);
       }
     } else {
-      // Open
       setIsDesktopSearchOpen(true);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
@@ -102,8 +99,7 @@ const Navbar: React.FC = () => {
             <div className="ml-10 flex items-baseline space-x-4">
               <Link to="/" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</Link>
               <Link to="/movies" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Movies</Link>
-              <Link to="/tv" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">TV Shows</Link>
-              <Link to="/blog" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Blog</Link>
+              <Link to="/tv" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">TV Series</Link>
               {user && <Link to="/watchlist" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Watchlist</Link>}
             </div>
           </div>
@@ -113,30 +109,24 @@ const Navbar: React.FC = () => {
             
             {/* Desktop Expanding Search */}
             <div ref={searchContainerRef} className="hidden md:flex items-center relative justify-end">
-              <form onSubmit={handleSearch} className={`relative flex items-center transition-all duration-500 ease-out ${isDesktopSearchOpen ? 'w-64' : 'w-10'}`}>
-                {/* 
-                  IMPORTANT: input must have bg-transparent, outline-none, ring-0, border-none 
-                  to ensure no black frame appears. The border is handled by the conditions below.
-                */}
+              <form onSubmit={handleSearch} className={`relative flex items-center transition-all duration-500 ease-in-out ${isDesktopSearchOpen ? 'w-64' : 'w-8'}`}>
+                {/* Minimalist Input: No Frames, No Background, Bottom Border only */}
                 <input
                   ref={inputRef}
                   type="text"
                   placeholder="Search..."
                   className={`
                     absolute right-0 top-1/2 -translate-y-1/2
-                    h-9
+                    h-8
                     bg-transparent 
                     text-gray-900 dark:text-white 
                     placeholder-gray-500 dark:placeholder-gray-400
-                    rounded-full
                     outline-none ring-0 border-none
                     transition-all duration-300
                     ${isDesktopSearchOpen 
-                      ? 'w-full pl-4 pr-10 opacity-100' 
-                      : 'w-0 opacity-0'
+                      ? 'w-full pr-8 pl-0 opacity-100 border-b-2 border-primary' // Visible state
+                      : 'w-0 opacity-0' // Hidden state
                     }
-                    /* Custom Pill Border */
-                    ${isDesktopSearchOpen ? 'border border-gray-300 dark:border-white/20 focus:border-primary dark:focus:border-primary' : ''}
                   `}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -146,13 +136,13 @@ const Navbar: React.FC = () => {
                   onClick={toggleDesktopSearch}
                   className={`
                     absolute right-0 top-1/2 -translate-y-1/2
-                    p-2 rounded-full z-10
-                    text-gray-600 dark:text-white/60 
-                    hover:text-primary dark:hover:text-white
+                    p-1 z-10
+                    text-gray-600 dark:text-white 
+                    hover:text-primary 
                     transition-colors
                   `}
                 >
-                  <Search size={18} />
+                  <Search size={20} />
                 </button>
               </form>
             </div>
@@ -216,11 +206,13 @@ const Navbar: React.FC = () => {
                 type="text"
                 placeholder="Search movies & TV..."
                 autoFocus
-                className="w-full bg-transparent text-gray-900 dark:text-white rounded-full py-2 pl-10 pr-4 outline-none border border-black/20 dark:border-white/20 focus:border-primary dark:focus:border-primary text-sm placeholder-gray-500 dark:placeholder-white/50 ring-0 shadow-sm"
+                className="w-full bg-transparent text-gray-900 dark:text-white border-b-2 border-primary py-2 px-2 outline-none ring-0 placeholder-gray-500 dark:placeholder-white/50 text-base"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <Search className="absolute left-3 top-2.5 text-gray-500 dark:text-white/60" size={16} />
+              <button type="submit" className="absolute right-2 top-2 text-gray-500 dark:text-white/60">
+                 <Search size={18} />
+              </button>
            </form>
         </div>
       )}

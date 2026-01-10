@@ -57,15 +57,11 @@ const Footer: React.FC = () => {
               <li><Link to="/" className="hover:text-primary transition-colors">Home</Link></li>
               <li><Link to="/movies" className="hover:text-primary transition-colors">Movies</Link></li>
               <li><Link to="/tv" className="hover:text-primary transition-colors">TV Series</Link></li>
-              <li><Link to="/watchlist" className="hover:text-primary transition-colors">Favorites</Link></li>
-              <li><Link to="/profile" className="hover:text-primary transition-colors">Account</Link></li>
-            </ul>
-          </div>
-
-          {/* Legal / Contact */}
-          <div>
-            <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-4">Legal</h3>
-            <ul className="space-y-2 text-sm">
+              <li>
+                <button onClick={() => openModal('dmca')} className="hover:text-primary transition-colors text-left">
+                  DMCA
+                </button>
+              </li>
               <li>
                 <button onClick={() => openModal('terms')} className="hover:text-primary transition-colors text-left">
                   Terms of Service
@@ -76,16 +72,17 @@ const Footer: React.FC = () => {
                   Privacy Policy
                 </button>
               </li>
-              <li>
-                <button onClick={() => openModal('cookie')} className="hover:text-primary transition-colors text-left">
-                  Cookie Policy
-                </button>
-              </li>
             </ul>
-            <div className="mt-6 text-xs text-gray-500">
-               <p className="font-bold mb-1 text-gray-400">DMCA Disclaimer:</p>
+          </div>
+
+          {/* Disclaimer */}
+          <div>
+            <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-4">Disclaimer</h3>
+            <div className="mt-2 text-xs text-gray-500">
                <p className="leading-relaxed">
-                 MOVIE HUB does not host any files on its server. All content is provided by non-affiliated third parties. For any copyright inquiries, please contact: <a href="mailto:Moviemasterastermdhub@gmail.com" className="text-primary hover:underline">Moviemasterastermdhub@gmail.com</a>.
+                 MOVIE HUB does not host any files. We link to 3rd party servers. 
+                 <br /><br />
+                 Contact: <a href="mailto:Moviemasterastermdhub@gmail.com" className="text-primary hover:underline">Moviemasterastermdhub@gmail.com</a>
                </p>
             </div>
           </div>
@@ -104,7 +101,7 @@ const Footer: React.FC = () => {
                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                     {activeModal === 'terms' && 'Terms of Service'}
                     {activeModal === 'privacy' && 'Privacy Policy'}
-                    {activeModal === 'cookie' && 'Cookie Policy'}
+                    {activeModal === 'dmca' && 'DMCA Disclaimer'}
                  </h2>
                  <button onClick={closeModal} className="text-gray-500 hover:text-primary transition-colors">
                     <XIcon size={24} />
@@ -114,8 +111,7 @@ const Footer: React.FC = () => {
                  {activeModal === 'terms' && (
                    <>
                      <p>Welcome to MOVIE HUB. By accessing or using our website, you agree to be bound by these Terms of Service.</p>
-                     <p><strong>Content Disclaimer:</strong> MOVIE HUB acts as a search index for movie and TV series information. We do not host any content on our servers. All video content is provided by non-affiliated third-party servers/APIs (such as vidsrc.to). We have no control over the content hosted on these external servers.</p>
-                     <p><strong>Usage:</strong> This service is provided "as-is" for informational and entertainment purposes only.</p>
+                     <p><strong>Content Disclaimer:</strong> MOVIE HUB acts as a search index for movie and TV series information. We do not host any content on our servers. All video content is provided by non-affiliated third-party servers/APIs. We have no control over the content hosted on these external servers.</p>
                    </>
                  )}
                  {activeModal === 'privacy' && (
@@ -123,15 +119,13 @@ const Footer: React.FC = () => {
                      <p>Your privacy is important to us. This Privacy Policy explains how we collect and use your information.</p>
                      <p><strong>Data Collection:</strong> We do not collect personal data such as names, addresses, or phone numbers unless explicitly provided by you (e.g., during optional account signup).</p>
                      <p><strong>Third-Party Services:</strong> We use third-party services like TMDB for data and YouTube for trailers. These services may collect their own data subject to their respective privacy policies.</p>
-                     <p><strong>Preferences:</strong> We store local settings such as your Theme preference (Dark/Light mode) to improve your experience.</p>
                    </>
                  )}
-                 {activeModal === 'cookie' && (
+                 {activeModal === 'dmca' && (
                    <>
-                     <p>MOVIE HUB uses cookies to enhance your browsing experience.</p>
-                     <p><strong>What are cookies?</strong> Cookies are small text files stored on your device that help us remember your preferences.</p>
-                     <p><strong>How we use them:</strong> We use cookies primarily to remember your theme preference (Dark Mode vs Light Mode) and to maintain your session state if you log in.</p>
-                     <p>By continuing to use our site, you consent to our use of cookies.</p>
+                     <p>MOVIE HUB respects the intellectual property rights of others.</p>
+                     <p><strong>Disclaimer:</strong> MOVIE HUB does not host any files on its server. All content is provided by non-affiliated third parties.</p>
+                     <p>If you believe that your copyrighted work has been copied in a way that constitutes copyright infringement and is accessible on this site, please notify our copyright agent by contacting: <strong>Moviemasterastermdhub@gmail.com</strong>.</p>
                    </>
                  )}
               </div>

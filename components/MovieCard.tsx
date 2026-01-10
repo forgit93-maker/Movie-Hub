@@ -51,6 +51,7 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, featured = false }) => {
                 <Star size={12} className="mr-1 fill-current" />
                 {movie.vote_average.toFixed(1)}
               </span>
+              {/* Year is also shown in overlay for convenience */}
               <span className="text-white/80 font-medium">{year}</span>
             </div>
             
@@ -70,8 +71,8 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, featured = false }) => {
        {!featured && (
          <div className="mt-2">
             <h3 className="text-gray-900 dark:text-white font-bold text-base truncate" title={title}>{title}</h3>
-            {/* Year styled as text-sm text-gray-400 for clarity */}
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{year}</p>
+            {/* Explicitly styled Year under Title as requested */}
+            <p className="text-sm font-medium text-gray-400 mt-1">{year}</p>
          </div>
        )}
     </div>
