@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
   const closeModal = () => setActiveModal(null);
 
   return (
-    <footer className="bg-gray-50 dark:bg-black text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-white/10 transition-colors duration-300 pb-28 md:pb-16">
+    <footer className="bg-gray-50 dark:bg-black text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-white/10 transition-colors duration-300 pb-28">
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           
@@ -84,7 +84,7 @@ const Footer: React.FC = () => {
 
         {/* Copyright Section */}
         <div className="border-t border-gray-200 dark:border-white/10 mt-12 pt-8 text-center text-xs text-gray-500">
-          <p>&copy;2026 MOVIE HUB All Rights Reserved. | Powered By MASTER-MD</p>
+          <p>&copy; 2026 MOVIE HUB All Rights Reserved. Powered By MASTER-MD</p>
         </div>
       </div>
 
@@ -120,7 +120,7 @@ const Footer: React.FC = () => {
                    <>
                      <p>MOVIE HUB respects the intellectual property rights of others.</p>
                      <p><strong>Disclaimer:</strong> MOVIE HUB does not host any files on its server. All content is provided by non-affiliated third parties.</p>
-                     <p>If you believe that your copyrighted work has been copied in a way that constitutes copyright infringement and is accessible on this site, please notify our copyright agent by contacting: <strong><a href="mailto:Moviemasterastermdhub@gmail.com" className="text-primary hover:underline">EMAIL</a></strong>.</p>
+                     <p>If you believe that your copyrighted work has been copied in a way that constitutes copyright infringement and is accessible on this site, please notify our copyright agent.</p>
                    </>
                  )}
               </div>
