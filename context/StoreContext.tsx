@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User as AppUser } from '../types';
-import { auth, googleProvider } from '../services/firebase';
+import { auth, googleProvider, db } from '../services/firebase';
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
   signOut,
-  User as FirebaseUser
 } from 'firebase/auth';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 interface StoreContextType {
   user: AppUser | null;
@@ -30,50 +30,65 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [watchlist, setWatchlist] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Handle Firebase Auth State Changes
+  // Handle Firebase Auth & Firestore Sync
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Map Firebase User to App User
-        const newUser: AppUser = {
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-          email: firebaseUser.email || '',
-          photoURL: firebaseUser.photoURL,
-          watchlist: [], 
-          favorites: []
-        };
-        setUser(newUser);
+        const userRef = doc(db, 'users', firebaseUser.uid);
         
-        // Load local watchlist 
-        const storedWatchlist = localStorage.getItem(`moviehub_watchlist_${firebaseUser.uid}`);
-        if (storedWatchlist) {
-            try {
-                const parsed = JSON.parse(storedWatchlist);
-                if (Array.isArray(parsed)) setWatchlist(parsed.filter(i => typeof i === 'number'));
-            } catch(e) { console.error(e); }
-        }
+        // Listen to Firestore changes in real-time
+        const unsubscribeSnapshot = onSnapshot(userRef, async (docSnap) => {
+          if (docSnap.exists()) {
+            // User exists in Firestore, sync state
+            const data = docSnap.data();
+            setUser({
+              id: firebaseUser.uid,
+              name: data.name || firebaseUser.displayName || 'User',
+              username: data.username || firebaseUser.email?.split('@')[0] || 'user',
+              email: firebaseUser.email || '',
+              photoURL: data.profilePic || firebaseUser.photoURL,
+              language: data.language || 'en',
+              watchlist: data.watchlist || [],
+              favorites: []
+            });
+            setWatchlist(data.watchlist || []);
+          } else {
+            // New user - Create Firestore Doc
+            const defaultUsername = firebaseUser.email?.split('@')[0] || `user_${Date.now()}`;
+            const newUser: AppUser = {
+              id: firebaseUser.uid,
+              name: firebaseUser.displayName || defaultUsername,
+              username: defaultUsername,
+              email: firebaseUser.email || '',
+              photoURL: firebaseUser.photoURL,
+              language: 'en',
+              watchlist: [], 
+              favorites: []
+            };
+            
+            await setDoc(userRef, {
+              username: newUser.username,
+              email: newUser.email,
+              name: newUser.name,
+              profilePic: newUser.photoURL,
+              language: 'en',
+              watchlist: []
+            });
+            setUser(newUser);
+          }
+          setLoading(false);
+        });
+
+        return () => unsubscribeSnapshot();
       } else {
         setUser(null);
         setWatchlist([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
-
-  // Save Watchlist to Local Storage (Per User)
-  const saveWatchlistToStorage = (list: number[]) => {
-    if (user) {
-        try {
-            const cleanList = list.filter(item => typeof item === 'number');
-            localStorage.setItem(`moviehub_watchlist_${user.id}`, JSON.stringify(cleanList));
-        } catch (error) {
-            console.error("Failed to save watchlist:", error);
-        }
-    }
-  };
 
   // Auth Functions
   const login = async (email: string, password: string) => {
@@ -93,11 +108,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const email = result.user.email;
         
         if (email && !email.toLowerCase().endsWith('@gmail.com')) {
-          // If not a gmail account, delete the user instance from auth immediately (cleanup) and sign out
           const userToDelete = auth.currentUser;
           if (userToDelete) {
              await userToDelete.delete().catch(async () => {
-                 // Fallback if delete fails (e.g. requires re-auth), just sign out
                  await signOut(auth);
              });
           }
@@ -115,21 +128,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await signOut(auth);
   };
 
-  // Watchlist Functions
-  const addToWatchlist = (id: number) => {
-    if (typeof id !== 'number') return;
+  // Watchlist Functions (Now syncing to Firestore)
+  const addToWatchlist = async (id: number) => {
+    if (typeof id !== 'number' || !user) return;
     if (!watchlist.includes(id)) {
       const newList = [...watchlist, id];
       setWatchlist(newList);
-      saveWatchlistToStorage(newList);
+      // Update Firestore
+      await setDoc(doc(db, 'users', user.id), { watchlist: newList }, { merge: true });
     }
   };
 
-  const removeFromWatchlist = (id: number) => {
-    if (typeof id !== 'number') return;
+  const removeFromWatchlist = async (id: number) => {
+    if (typeof id !== 'number' || !user) return;
     const newList = watchlist.filter(itemId => itemId !== id);
     setWatchlist(newList);
-    saveWatchlistToStorage(newList);
+    // Update Firestore
+    await setDoc(doc(db, 'users', user.id), { watchlist: newList }, { merge: true });
   };
 
   const isWatchlisted = (id: number) => watchlist.includes(id);
