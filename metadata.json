@@ -1,0 +1,5 @@
+{
+  "name": "MOVIE HUB",
+  "description": "A comprehensive movie and TV series streaming information hub powered by TMDB and Gemini AI.",
+  "requestFramePermissions": []
+}
