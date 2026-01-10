@@ -88,9 +88,9 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Copyright Section */}
-        <div className="border-t border-gray-200 dark:border-white/10 mt-12 pt-8 text-center text-xs text-gray-500 flex flex-col items-center gap-2">
-          <p>&copy; 2026 MOVIE HUB All Rights Reserved.</p>
-          <p className="font-semibold text-gray-400 tracking-wider">Powered By MASTER-MD</p>
+        <div className="border-t border-gray-200 dark:border-white/10 mt-12 pt-8 text-center text-xs text-gray-500 flex flex-col items-center gap-1">
+          <p>&copy;2026 MOVIE HUB All Rights Reserved.</p>
+          <p className="font-semibold text-gray-400">Powered By MASTER-MD</p>
         </div>
       </div>
 
