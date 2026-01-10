@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Youtube, X as XIcon } from 'lucide-react';
+import { Facebook, Instagram, Youtube, X as XIcon, Mail } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -32,7 +32,6 @@ const Footer: React.FC = () => {
                 <Youtube size={20} />
               </a>
               <a href="https://www.tiktok.com/@movie_hub_lk?_r=1&_t=ZS-92IeqpEMyYL_" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors text-gray-900 dark:text-white">
-                {/* Custom TikTok SVG */}
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="20"
@@ -50,13 +49,15 @@ const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Help Section */}
           <div>
-            <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-4">Quick Links</h3>
+            <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-4">Help</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/" className="hover:text-primary transition-colors">Home</Link></li>
-              <li><Link to="/movies" className="hover:text-primary transition-colors">Movies</Link></li>
-              <li><Link to="/tv" className="hover:text-primary transition-colors">TV Series</Link></li>
+              <li>
+                <a href="mailto:Moviemasterastermdhub@gmail.com" className="hover:text-primary transition-colors flex items-center gap-2">
+                   Message
+                </a>
+              </li>
               <li>
                 <button onClick={() => openModal('dmca')} className="hover:text-primary transition-colors text-left">
                   DMCA
@@ -82,7 +83,7 @@ const Footer: React.FC = () => {
                <p className="leading-relaxed">
                  MOVIE HUB does not host any files. We link to 3rd party servers. 
                  <br /><br />
-                 Contact: <a href="mailto:Moviemasterastermdhub@gmail.com" className="text-primary hover:underline">Moviemasterastermdhub@gmail.com</a>
+                 <a href="mailto:Moviemasterastermdhub@gmail.com" className="text-primary font-bold hover:underline">Contact: EMAIL</a>
                </p>
             </div>
           </div>
@@ -125,7 +126,7 @@ const Footer: React.FC = () => {
                    <>
                      <p>MOVIE HUB respects the intellectual property rights of others.</p>
                      <p><strong>Disclaimer:</strong> MOVIE HUB does not host any files on its server. All content is provided by non-affiliated third parties.</p>
-                     <p>If you believe that your copyrighted work has been copied in a way that constitutes copyright infringement and is accessible on this site, please notify our copyright agent by contacting: <strong>Moviemasterastermdhub@gmail.com</strong>.</p>
+                     <p>If you believe that your copyrighted work has been copied in a way that constitutes copyright infringement and is accessible on this site, please notify our copyright agent by contacting: <strong><a href="mailto:Moviemasterastermdhub@gmail.com" className="text-primary hover:underline">EMAIL</a></strong>.</p>
                    </>
                  )}
               </div>

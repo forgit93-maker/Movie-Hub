@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Plus, Check } from 'lucide-react';
+import { Star, PlayCircle } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageUrl } from '../services/tmdb';
-import { useStore } from '../context/StoreContext';
 
 interface MovieCardProps {
   movie: Movie;
@@ -11,70 +10,61 @@ interface MovieCardProps {
 }
 
 const MovieCard: React.FC<MovieCardProps> = ({ movie, featured = false }) => {
-  const { isWatchlisted, addToWatchlist, removeFromWatchlist, user } = useStore();
-  const inWatchlist = isWatchlisted(movie.id);
-
-  const toggleWatchlist = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!user) {
-        alert("Please login to use watchlist");
-        return;
-    }
-    if (inWatchlist) removeFromWatchlist(movie.id);
-    else addToWatchlist(movie.id);
-  };
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
 
   const title = movie.title || movie.name || 'Untitled';
-  
-  // Logic to fetch year (Movies: release_date, TV: first_air_date)
   const rawDate = movie.release_date || movie.first_air_date;
-  const year = rawDate ? rawDate.split('-')[0] : 'N/A';
-  
+  const year = rawDate ? rawDate.split('-')[0] : '';
   const mediaType = movie.media_type || (movie.title ? 'movie' : 'tv');
 
   return (
-    <div className={`relative group ${featured ? 'w-full h-full' : 'w-[160px] md:w-[200px] flex-shrink-0'}`}>
-       <Link to={`/details/${mediaType}/${movie.id}`} className="block h-full">
-        <div className={`relative overflow-hidden rounded-md transition-all duration-300 ${featured ? 'aspect-video' : 'aspect-[2/3]'} bg-gray-200 dark:bg-gray-800 shadow-sm`}>
-          <img
-            src={getImageUrl(featured ? movie.backdrop_path : movie.poster_path, featured ? 'original' : 'w500')}
-            alt={title}
-            className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-            loading="lazy"
-          />
-          
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-            <h3 className="text-white font-bold text-sm md:text-base leading-tight mb-1 truncate">{title}</h3>
-            
-            <div className="flex items-center justify-between text-xs text-gray-300">
-              <span className="flex items-center text-green-400">
-                <Star size={12} className="mr-1 fill-current" />
-                {movie.vote_average.toFixed(1)}
-              </span>
-              {/* Year is also shown in overlay for convenience */}
-              <span className="text-white/80 font-medium">{year}</span>
-            </div>
-            
-            <div className="mt-3 flex gap-2">
-               <button 
-                onClick={toggleWatchlist}
-                className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-1 rounded flex items-center justify-center text-white transition-colors border border-white/20"
-               >
-                 {inWatchlist ? <Check size={16} /> : <Plus size={16} />}
-               </button>
-            </div>
-          </div>
+    <div className={`relative group w-full ${featured ? 'h-full' : 'w-[140px] md:w-[180px] flex-shrink-0'}`}>
+      <Link to={`/details/${mediaType}/${movie.id}`} className="block h-full">
+        {/* Card Container */}
+        <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900 shadow-md">
+           
+           {/* Skeleton Loader */}
+           {!isImageLoaded && (
+             <div className="absolute inset-0 bg-gray-800 animate-pulse" />
+           )}
+
+           {/* Poster Image */}
+           <img
+             src={getImageUrl(movie.poster_path, 'w500')}
+             alt={title}
+             loading="lazy"
+             className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+             onLoad={() => setIsImageLoaded(true)}
+           />
+
+           {/* Rating Badge (Top Right) */}
+           <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-sm z-10">
+             <Star size={10} className="text-yellow-400 fill-yellow-400" />
+             <span className="text-[10px] font-bold text-white">{movie.vote_average?.toFixed(1)}</span>
+           </div>
+
+           {/* Gradient Overlay (Bottom) */}
+           <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col justify-end p-3 z-10">
+             
+             {/* Title */}
+             <h3 className="text-white font-bold text-xs md:text-sm leading-tight truncate">
+               {title}
+             </h3>
+             
+             {/* Metadata Row */}
+             <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400 font-medium">
+               <span>{year}</span>
+               <span className="w-0.5 h-0.5 bg-gray-500 rounded-full"></span>
+               <span className="uppercase">{mediaType === 'tv' ? 'TV' : 'Movie'}</span>
+             </div>
+           </div>
+
+           {/* Hover Play Icon */}
+           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/10 z-0">
+             <PlayCircle size={40} className="text-white/90 fill-white/20 drop-shadow-lg" />
+           </div>
         </div>
-       </Link>
-       
-       {/* Info Section Below Poster - Visible on all screens for non-featured cards */}
-       {!featured && (
-         <div className="mt-2">
-            <h3 className="text-gray-900 dark:text-white font-bold text-base truncate" title={title}>{title}</h3>
-            {/* Explicitly styled Year under Title as requested */}
-            <p className="text-sm font-medium text-gray-400 mt-1">{year}</p>
-         </div>
-       )}
+      </Link>
     </div>
   );
 };
