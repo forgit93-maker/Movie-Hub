@@ -54,11 +54,6 @@ const Footer: React.FC = () => {
             <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-4">Help</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="mailto:Moviemasterastermdhub@gmail.com" className="hover:text-primary transition-colors flex items-center gap-2">
-                   Message
-                </a>
-              </li>
-              <li>
                 <button onClick={() => openModal('dmca')} className="hover:text-primary transition-colors text-left">
                   DMCA
                 </button>
