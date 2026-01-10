@@ -4,11 +4,13 @@ let chatSession: Chat | null = null;
 let genAI: GoogleGenAI | null = null;
 
 export const initGemini = () => {
-  if (!process.env.API_KEY) {
+  const apiKey = typeof process !== "undefined" ? process.env?.API_KEY : undefined;
+  
+  if (!apiKey) {
     console.warn("Gemini API Key is missing.");
     return;
   }
-  genAI = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  genAI = new GoogleGenAI({ apiKey });
   
   chatSession = genAI.chats.create({
     model: 'gemini-3-flash-preview',
