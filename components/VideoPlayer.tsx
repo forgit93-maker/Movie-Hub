@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Server, AlertCircle, Cast, Zap, Captions, RefreshCw, Plus, Minus, Upload } from 'lucide-react';
+import { Play, Pause, Server, AlertCircle, Cast, Zap, RefreshCw, Plus, Minus, Upload, Download, Settings, X, Maximize, Type, Monitor, Smartphone, Wifi, Film } from 'lucide-react';
 import SubtitleOverlay from './SubtitleOverlay';
 import { SubtitleCue } from '../utils/subtitleHelper';
+import { SubtitleStyle } from '../types';
 
 interface VideoPlayerProps {
   tmdbId: number;
@@ -9,7 +10,7 @@ interface VideoPlayerProps {
   season?: number;
   episode?: number;
   isAnime?: boolean;
-  subtitleCues?: SubtitleCue[]; // Changed from file to parsed cues
+  subtitleCues?: SubtitleCue[]; 
   onSubtitleUpload?: (file: File) => void;
   subtitleFileName?: string;
   onClearSubtitle?: () => void;
@@ -30,13 +31,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [iframeKey, setIframeKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
 
-  // --- SUBTITLE SYNC STATE ---
+  // --- SUBTITLE STATE ---
   const [subTime, setSubTime] = useState(0);
   const [isSubsPlaying, setIsSubsPlaying] = useState(false);
   const [syncOffset, setSyncOffset] = useState(0);
   const timerRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
+
+  // --- CUSTOMIZATION STATE ---
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
+  const [subStyle, setSubStyle] = useState<SubtitleStyle>({
+    color: '#ffffff',
+    fontSize: 24,
+    backgroundColor: 'transparent',
+    hasShadow: true,
+    opacity: 1
+  });
 
   // Define Anime Specific Servers
   const animeServers = [
@@ -90,17 +103,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const servers = isAnime ? [...animeServers, ...standardServers] : standardServers;
 
+  const downloadQualities = [
+      { label: '4K Ultra HD', resolution: '2160p', icon: Monitor, color: 'from-purple-600 to-pink-600', badge: 'ULTRA' },
+      { label: 'Full HD', resolution: '1080p', icon: Monitor, color: 'from-blue-600 to-cyan-600', badge: 'HD' },
+      { label: 'HD Ready', resolution: '720p', icon: Wifi, color: 'from-green-600 to-emerald-600', badge: 'HD' },
+      { label: 'Standard', resolution: '480p', icon: Smartphone, color: 'from-yellow-600 to-orange-600', badge: 'SD' },
+      { label: 'Data Saver', resolution: '360p', icon: Smartphone, color: 'from-gray-600 to-gray-500', badge: 'LOW' },
+  ];
+
   const handleServerChange = (index: number) => {
     setIsLoading(true);
     setCurrentServer(index);
     setIframeKey(prev => prev + 1);
   };
 
-  // Reset EVERYTHING when content changes
   useEffect(() => {
     setIsLoading(true);
     setCurrentServer(0);
-    // Reset Subtitle Timer
     setSubTime(0);
     setIsSubsPlaying(false);
     setSyncOffset(0);
@@ -130,9 +149,34 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0] && onSubtitleUpload) {
         onSubtitleUpload(e.target.files[0]);
-        // Reset timer when new sub loaded
         setSubTime(0);
         setIsSubsPlaying(false);
+    }
+  };
+
+  const handleQualityDownload = () => {
+    // Construct dynamic download URL for vidsrc.me portal
+    // This portal auto-detects availability, so we send the user there for all qualities
+    let downloadUrl = "";
+    if (type === 'movie') {
+        downloadUrl = `https://vidsrc.me/download/movie/${tmdbId}`;
+    } else {
+        downloadUrl = `https://vidsrc.me/download/tv?tmdb=${tmdbId}&sea=${season}&epi=${episode}`;
+    }
+    window.open(downloadUrl, '_blank');
+    setIsDownloadMenuOpen(false);
+  };
+
+  // Custom Fullscreen Handler
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (playerContainerRef.current) {
+        playerContainerRef.current.requestFullscreen().catch(err => {
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+      }
+    } else {
+      document.exitFullscreen();
     }
   };
 
@@ -166,8 +210,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       {/* Player Container with Overlay */}
-      <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800 ring-1 ring-white/10 group">
-        
+      <div 
+        ref={playerContainerRef}
+        className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800 ring-1 ring-white/10 group"
+      >
         {/* Loading Overlay */}
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10 pointer-events-none">
@@ -183,7 +229,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         {/* Subtitle Overlay Component */}
         {subtitleCues.length > 0 && (
-            <SubtitleOverlay cues={subtitleCues} currentTime={subTime} offset={syncOffset} />
+            <SubtitleOverlay 
+                cues={subtitleCues} 
+                currentTime={subTime} 
+                offset={syncOffset} 
+                style={subStyle}
+            />
         )}
 
         {/* The Iframe */}
@@ -196,6 +247,131 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           onLoad={() => setIsLoading(false)}
         />
+
+        {/* Custom Controls Layer - Shows on Hover */}
+        <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-40">
+           {/* Only show fullscreen button if we have subtitles, otherwise standard iframe fullscreen is fine */}
+           {subtitleCues.length > 0 && (
+             <button 
+               onClick={toggleFullscreen}
+               className="p-2 bg-black/60 hover:bg-black/80 rounded-full text-white backdrop-blur-sm"
+               title="Fullscreen with Subtitles"
+             >
+               <Maximize size={20} />
+             </button>
+           )}
+        </div>
+
+        {/* --- SETTINGS MODAL --- */}
+        {isSettingsOpen && (
+           <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in-up">
+              <div className="bg-[#1a1a1a] w-full max-w-sm rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
+                  <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50">
+                      <div className="flex items-center gap-2 text-white">
+                          <Settings size={18} />
+                          <span className="font-bold">Subtitle Settings</span>
+                      </div>
+                      <button onClick={() => setIsSettingsOpen(false)} className="text-gray-400 hover:text-white">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <div className="p-5 space-y-6">
+                      <div>
+                          <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Font Color</label>
+                          <div className="flex gap-3">
+                              {['#ffffff', '#fbbf24', '#4ade80', '#60a5fa', '#f472b6'].map((color) => (
+                                  <button
+                                      key={color}
+                                      onClick={() => setSubStyle(s => ({ ...s, color }))}
+                                      className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${subStyle.color === color ? 'border-white ring-2 ring-primary' : 'border-transparent'}`}
+                                      style={{ backgroundColor: color }}
+                                  />
+                              ))}
+                          </div>
+                      </div>
+                      <div>
+                          <div className="flex justify-between text-xs font-bold text-gray-400 uppercase mb-2">
+                             <span>Font Size</span>
+                             <span>{subStyle.fontSize}px</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="12" 
+                            max="40" 
+                            step="2"
+                            value={subStyle.fontSize}
+                            onChange={(e) => setSubStyle(s => ({...s, fontSize: Number(e.target.value)}))}
+                            className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                      </div>
+                      <div>
+                           <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Background Style</label>
+                           <div className="grid grid-cols-3 gap-2">
+                               <button onClick={() => setSubStyle(s => ({...s, backgroundColor: 'transparent', hasShadow: true}))} className={`py-1.5 px-2 rounded text-xs font-bold border ${subStyle.backgroundColor === 'transparent' && subStyle.hasShadow ? 'bg-primary border-primary text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>Outline</button>
+                               <button onClick={() => setSubStyle(s => ({...s, backgroundColor: 'rgba(0,0,0,0.5)', hasShadow: false}))} className={`py-1.5 px-2 rounded text-xs font-bold border ${subStyle.backgroundColor === 'rgba(0,0,0,0.5)' ? 'bg-primary border-primary text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>Semi-Box</button>
+                               <button onClick={() => setSubStyle(s => ({...s, backgroundColor: 'black', hasShadow: false}))} className={`py-1.5 px-2 rounded text-xs font-bold border ${subStyle.backgroundColor === 'black' ? 'bg-primary border-primary text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>Solid Box</button>
+                           </div>
+                      </div>
+                      <div className="pt-4 border-t border-gray-700">
+                           <div className="flex justify-between items-center mb-2">
+                               <label className="text-xs font-bold text-gray-400 uppercase">Sync Correction</label>
+                               <span className={`text-xs font-mono font-bold ${syncOffset === 0 ? 'text-gray-500' : 'text-primary'}`}>
+                                   {syncOffset > 0 ? '+' : ''}{syncOffset.toFixed(1)}s
+                               </span>
+                           </div>
+                           <div className="grid grid-cols-4 gap-2">
+                               <button onClick={() => adjustSync(-0.5)} className="bg-gray-800 hover:bg-gray-700 text-white rounded p-2 text-xs font-bold">-0.5s</button>
+                               <button onClick={() => adjustSync(-0.1)} className="bg-gray-800 hover:bg-gray-700 text-white rounded p-2 text-xs font-bold">-0.1s</button>
+                               <button onClick={() => adjustSync(0.1)} className="bg-gray-800 hover:bg-gray-700 text-white rounded p-2 text-xs font-bold">+0.1s</button>
+                               <button onClick={() => adjustSync(0.5)} className="bg-gray-800 hover:bg-gray-700 text-white rounded p-2 text-xs font-bold">+0.5s</button>
+                           </div>
+                      </div>
+                  </div>
+              </div>
+           </div>
+        )}
+
+        {/* --- DOWNLOAD QUALITY MODAL --- */}
+        {isDownloadMenuOpen && (
+            <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in-up">
+                <div className="bg-[#1a1a1a] w-full max-w-sm rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
+                    <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50">
+                        <div className="flex items-center gap-2 text-white">
+                            <Download size={18} />
+                            <span className="font-bold">Select Quality</span>
+                        </div>
+                        <button onClick={() => setIsDownloadMenuOpen(false)} className="text-gray-400 hover:text-white">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <div className="p-4 space-y-3">
+                        {downloadQualities.map((quality, idx) => (
+                            <button
+                                key={idx}
+                                onClick={handleQualityDownload}
+                                className="w-full group relative overflow-hidden rounded-lg border border-gray-700 bg-gray-800/50 hover:bg-gray-700 transition-all duration-300"
+                            >
+                                <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${quality.color}`}></div>
+                                <div className="flex items-center justify-between p-3 pl-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-full bg-black/40 text-gray-300 group-hover:text-white group-hover:bg-black/60 transition`}>
+                                            <quality.icon size={18} />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-white font-bold text-sm">{quality.label}</p>
+                                            <p className="text-gray-500 text-xs">{quality.resolution}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[10px] font-bold px-2 py-1 rounded bg-gradient-to-r ${quality.color} text-white shadow-lg`}>
+                                        {quality.badge}
+                                    </span>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
       </div>
 
       {/* --- SERVER SELECTION --- */}
@@ -222,15 +398,35 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       </div>
 
-      {/* --- SUBTITLE CONTROLS & UPLOAD --- */}
+      {/* --- PLAYER TOOLS --- */}
       <div className="bg-black/40 border border-white/10 rounded-lg p-4 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-white">
-                  <Captions size={18} />
-                  <span className="text-sm font-bold">Subtitle Tools</span>
+                  <Type size={18} />
+                  <span className="text-sm font-bold">Tools</span>
               </div>
-              {/* UPLOAD BUTTON */}
-              <div className="flex items-center gap-2">
+              
+              <div className="flex flex-wrap items-center gap-3">
+                {/* SETTINGS BUTTON */}
+                <button 
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-gray-700 transition"
+                  title="Subtitle Settings"
+                >
+                    <Settings size={18} />
+                </button>
+
+                {/* DOWNLOAD MENU BUTTON */}
+                <button 
+                  onClick={() => setIsDownloadMenuOpen(true)}
+                  className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded shadow-lg transition-transform transform hover:scale-105"
+                  title="Download in 4K, 1080p, 720p"
+                >
+                    <Download size={16} />
+                    <span className="text-xs hidden md:inline">Download</span>
+                </button>
+
+                {/* UPLOAD SUBTITLE BUTTON */}
                 <input 
                     type="file" 
                     accept=".srt,.vtt" 
@@ -240,74 +436,41 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 />
                 <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold text-white transition"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold text-white transition border border-white/10"
                 >
-                    <Upload size={12} /> {subtitleFileName ? 'Replace Sub' : 'Add Subtitle'}
+                    <Upload size={12} /> {subtitleFileName ? 'Replace' : 'Add Sub'}
                 </button>
                 {subtitleFileName && onClearSubtitle && (
                     <button onClick={onClearSubtitle} className="text-red-400 hover:text-red-300 px-2 text-xs">Clear</button>
                 )}
               </div>
           </div>
-
-          {subtitleCues.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in-up">
-                  {/* PLAYBACK CONTROL */}
-                  <div className="flex items-center gap-3 bg-gray-900/50 p-2 rounded border border-gray-700">
-                      <button 
-                        onClick={toggleSubTimer}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                            isSubsPlaying ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-green-600 hover:bg-green-500'
-                        } text-white`}
-                        title={isSubsPlaying ? "Pause Subs" : "Start Subs"}
-                      >
-                          {isSubsPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
-                      </button>
-                      <div className="flex-1">
-                          <p className="text-[10px] text-gray-400 uppercase font-bold">Subtitle Time</p>
-                          <p className="text-xl font-mono text-white leading-none">{formatTime(subTime)}</p>
-                      </div>
-                      <button 
-                         onClick={() => setSubTime(0)} 
-                         className="p-2 text-gray-400 hover:text-white"
-                         title="Reset Time"
-                      >
-                          <RefreshCw size={14} />
-                      </button>
+          
+          <p className="text-[10px] text-gray-400 text-right -mt-2">
+            High-speed download links generated automatically.
+          </p>
+          
+          {subtitleCues.length > 0 && (
+              <div className="flex items-center gap-3 bg-gray-900/50 p-2 rounded border border-gray-700 mt-2">
+                  <button 
+                    onClick={toggleSubTimer}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                        isSubsPlaying ? 'bg-yellow-600' : 'bg-green-600'
+                    } text-white`}
+                  >
+                      {isSubsPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+                  </button>
+                  <div className="flex-1">
+                      <p className="text-[10px] text-gray-400 uppercase font-bold">Synced Time</p>
+                      <p className="text-lg font-mono text-white leading-none">{formatTime(subTime)}</p>
                   </div>
-
-                  {/* SYNC ADJUSTMENT */}
-                  <div className="flex items-center gap-3 bg-gray-900/50 p-2 rounded border border-gray-700">
-                      <div className="flex-1">
-                           <p className="text-[10px] text-gray-400 uppercase font-bold">Sync Delay</p>
-                           <p className={`text-sm font-bold ${syncOffset === 0 ? 'text-gray-500' : 'text-blue-400'}`}>
-                               {syncOffset > 0 ? '+' : ''}{syncOffset.toFixed(1)}s
-                           </p>
-                      </div>
-                      <div className="flex gap-1">
-                          <button 
-                            onClick={() => adjustSync(-0.5)}
-                            className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-white text-xs font-bold flex items-center"
-                          >
-                              <Minus size={10} className="mr-1" /> 0.5s
-                          </button>
-                          <button 
-                            onClick={() => adjustSync(0.5)}
-                            className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-white text-xs font-bold flex items-center"
-                          >
-                              <Plus size={10} className="mr-1" /> 0.5s
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          ) : (
-              <div className="p-3 bg-blue-900/20 border border-blue-500/20 rounded text-center">
-                  <p className="text-sm text-blue-200">
-                      Upload a .srt file to enable the overlay player.
-                  </p>
-                  <p className="text-[10px] text-gray-400 mt-1">
-                      Since we use external servers, you must manually start/sync subtitles with the video.
-                  </p>
+                  <button 
+                      onClick={() => setSubTime(0)} 
+                      className="p-2 text-gray-400 hover:text-white"
+                      title="Reset Time"
+                  >
+                      <RefreshCw size={14} />
+                  </button>
               </div>
           )}
       </div>

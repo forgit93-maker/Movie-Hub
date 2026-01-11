@@ -1,47 +1,50 @@
 import React, { useMemo } from 'react';
 import { SubtitleCue } from '../utils/subtitleHelper';
+import { SubtitleStyle } from '../types';
 
 interface SubtitleOverlayProps {
   cues: SubtitleCue[];
-  currentTime: number; // Current playback time in seconds
-  offset: number; // Synchronization offset in seconds
+  currentTime: number;
+  offset: number;
+  style: SubtitleStyle;
 }
 
-const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ cues, currentTime, offset }) => {
+const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ cues, currentTime, offset, style }) => {
   // Calculate the effective time for subtitle lookup
   const adjustedTime = currentTime - offset;
 
   // Find the active cue
-  // Using useMemo to optimize performance since render loop is fast
   const activeCue = useMemo(() => {
     return cues.find(cue => adjustedTime >= cue.startTime && adjustedTime <= cue.endTime);
   }, [cues, adjustedTime]);
 
   if (!activeCue) return null;
 
+  // Dynamic CSS construction based on props
+  const textStyle: React.CSSProperties = {
+    color: style.color,
+    fontSize: `${style.fontSize}px`,
+    backgroundColor: style.backgroundColor,
+    textShadow: style.hasShadow 
+      ? `-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 2px 2px 4px rgba(0,0,0,0.8)` 
+      : 'none',
+    padding: style.backgroundColor !== 'transparent' ? '4px 12px' : '2px 4px',
+    borderRadius: '6px',
+    boxDecorationBreak: 'clone',
+    WebkitBoxDecorationBreak: 'clone',
+    textAlign: 'center',
+    lineHeight: '1.4',
+    fontFamily: 'Arial, sans-serif', // Clean cinematic font
+    fontWeight: 600,
+  };
+
   return (
     <div 
-      className="absolute inset-0 z-20 flex flex-col justify-end items-center pb-12 md:pb-16 pointer-events-none overflow-hidden"
+      className="absolute inset-x-0 bottom-[10%] z-30 flex flex-col items-center justify-end pointer-events-none p-4"
       aria-hidden="true"
     >
-      <div className="px-6 text-center">
-        <span 
-          className="text-white text-lg md:text-2xl font-medium tracking-wide"
-          style={{
-            textShadow: `
-              -2px -2px 0 #000,  
-               2px -2px 0 #000,
-              -2px  2px 0 #000,
-               2px  2px 0 #000,
-               0px 2px 4px rgba(0,0,0,0.8)
-            `,
-            backgroundColor: 'rgba(0,0,0,0.4)',
-            padding: '4px 12px',
-            borderRadius: '4px',
-            boxDecorationBreak: 'clone',
-            WebkitBoxDecorationBreak: 'clone'
-          }}
-        >
+      <div style={{ opacity: style.opacity }}>
+        <span style={textStyle}>
           {activeCue.text.split('\n').map((line, i) => (
             <React.Fragment key={i}>
               {line}
