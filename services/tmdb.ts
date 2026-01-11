@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Movie, MovieDetails } from '../types';
+import { Movie, MovieDetails, SeasonDetails } from '../types';
 
 const API_KEY = '48a8490f258006ed14e678a6a39819ec';
 const BASE_URL = 'https://api.themoviedb.org/3';
@@ -51,6 +51,16 @@ export const tmdbService = {
       }
     });
     return response.data;
+  },
+
+  getSeasonDetails: async (tvId: number, seasonNumber: number): Promise<SeasonDetails | null> => {
+    try {
+      const response = await api.get<SeasonDetails>(`/tv/${tvId}/season/${seasonNumber}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching season ${seasonNumber}:`, error);
+      return null;
+    }
   },
 
   getMoviesByGenre: async (genreId: number): Promise<Movie[]> => {
