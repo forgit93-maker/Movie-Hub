@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { tmdbService, getImageUrl } from '../services/tmdb';
 import { MovieDetails as MovieDetailsType } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Star, Clock, PlayCircle, ArrowLeft, Plus, Check, X, ExternalLink, Share2, Copy, Facebook } from 'lucide-react';
+import { Star, Clock, PlayCircle, ArrowLeft, Check, X, ExternalLink, Share2, Copy, Facebook, Heart } from 'lucide-react';
 import MovieCard from '../components/MovieCard';
 
 const Details: React.FC = () => {
@@ -181,18 +181,32 @@ const Details: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-10">
         <div className="max-w-4xl">
-           {/* Overview Header with Small Cute Share Icon to the FAR RIGHT */}
+           {/* Overview Header with Icons on FAR RIGHT */}
            <div className="flex items-center justify-between mb-4">
              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">Overview</h3>
              
-             {/* Small Cute Share Icon */}
-             <button 
-                onClick={handleShare}
-                className="p-2 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-primary transition-all duration-300"
-                title="Share this movie"
-             >
-                <Share2 size={20} />
-             </button>
+             <div className="flex items-center gap-4">
+                {/* Watchlist Heart Icon */}
+                <button 
+                  onClick={toggleWatchlist}
+                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  title={inWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
+                >
+                   <Heart 
+                     size={24} 
+                     className={`transition-colors duration-300 ${inWatchlist ? 'fill-primary text-primary' : 'text-gray-500 hover:text-primary'}`} 
+                   />
+                </button>
+
+                {/* Share Icon */}
+                <button 
+                   onClick={handleShare}
+                   className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-primary transition-all duration-300"
+                   title="Share this movie"
+                >
+                   <Share2 size={24} />
+                </button>
+             </div>
            </div>
 
            <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-base md:text-lg font-light">
@@ -228,8 +242,9 @@ const Details: React.FC = () => {
           </div>
         </section>
 
-        <section className="flex flex-col sm:flex-row gap-4 border-t border-gray-200 dark:border-gray-800 pt-8">
-           {trailer && (
+        {/* Buttons Row - Large Share/Watchlist Buttons Removed. Only Trailer remains if available. */}
+        {trailer && (
+          <section className="flex flex-col sm:flex-row gap-4 border-t border-gray-200 dark:border-gray-800 pt-8">
              <button 
                onClick={() => {
                  setVideoError(false);
@@ -239,16 +254,8 @@ const Details: React.FC = () => {
              >
                <PlayCircle size={20} className="mr-2" /> Watch Trailer
              </button>
-           )}
-           
-           <button 
-             onClick={toggleWatchlist}
-             className={`flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3 font-bold rounded-lg transition-all duration-300 border ${inWatchlist ? 'bg-green-600 border-green-600 text-white' : 'bg-transparent border-gray-400 dark:border-gray-600 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-           >
-             {inWatchlist ? <Check size={20} className="mr-2" /> : <Plus size={20} className="mr-2" />}
-             {inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
-           </button>
-        </section>
+          </section>
+        )}
 
         {data.similar.results.length > 0 && (
           <section className="pt-8 border-t border-gray-200 dark:border-gray-800">
