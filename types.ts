@@ -23,6 +23,30 @@ export interface Image {
   width: number;
 }
 
+export interface Episode {
+  id: number;
+  name: string;
+  overview: string;
+  vote_average: number;
+  vote_count: number;
+  air_date: string;
+  episode_number: number;
+  season_number: number;
+  still_path: string | null;
+  runtime: number;
+}
+
+export interface SeasonDetails {
+  _id: string;
+  air_date: string;
+  episodes: Episode[];
+  name: string;
+  overview: string;
+  id: number;
+  poster_path: string | null;
+  season_number: number;
+}
+
 export interface MovieDetails extends Movie {
   genres: { id: number; name: string }[];
   runtime?: number;
@@ -45,6 +69,18 @@ export interface MovieDetails extends Movie {
     backdrops: Image[];
     posters: Image[];
   };
+  // TV Specific
+  number_of_episodes?: number;
+  number_of_seasons?: number;
+  seasons?: {
+    air_date: string;
+    episode_count: number;
+    id: number;
+    name: string;
+    overview: string;
+    poster_path: string;
+    season_number: number;
+  }[];
 }
 
 export interface CastMember {
@@ -81,10 +117,10 @@ export interface Review {
 export interface User {
   id: string;
   name: string;
-  username: string; // New
+  username: string;
   email: string;
   photoURL?: string | null;
-  language?: 'en' | 'si' | 'ta'; // New
+  language?: 'en' | 'si' | 'ta';
   watchlist: number[];
   favorites: number[];
 }
