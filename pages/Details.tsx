@@ -5,9 +5,10 @@ import { Helmet } from 'react-helmet-async';
 import { tmdbService, getImageUrl } from '../services/tmdb';
 import { MovieDetails as MovieDetailsType, Episode } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Star, Clock, PlayCircle, ArrowLeft, Check, X, ExternalLink, Share2, Copy, Facebook, Heart, Play, ChevronDown } from 'lucide-react';
+import { Star, Clock, PlayCircle, ArrowLeft, Check, X, ExternalLink, Share2, Copy, Facebook, Heart, Play, ChevronDown, Captions, Trash2 } from 'lucide-react';
 import MovieCard from '../components/MovieCard';
 import VideoPlayer from '../components/VideoPlayer';
+import { parseSubtitle, SubtitleCue } from '../utils/subtitleHelper';
 
 const Details: React.FC = () => {
   const { type, id } = useParams<{ type: 'movie' | 'tv'; id: string }>();
@@ -17,6 +18,10 @@ const Details: React.FC = () => {
   
   // Player State
   const [showPlayer, setShowPlayer] = useState(false);
+  
+  // Subtitle State
+  const [subtitleCues, setSubtitleCues] = useState<SubtitleCue[]>([]);
+  const [subtitleFileName, setSubtitleFileName] = useState<string>('');
   
   // TV Series State
   const [season, setSeason] = useState(1);
@@ -36,7 +41,9 @@ const Details: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      setShowPlayer(false); // Reset player visibility on new page load
+      setShowPlayer(false); 
+      setSubtitleCues([]);
+      setSubtitleFileName('');
       if (type && id) {
         try {
           const result = await tmdbService.getDetails(type, parseInt(id));
@@ -72,6 +79,12 @@ const Details: React.FC = () => {
     fetchSeasonEpisodes();
   }, [type, id, season]);
 
+  // Reset subtitles when episode changes
+  useEffect(() => {
+      setSubtitleCues([]);
+      setSubtitleFileName('');
+  }, [episode, season]);
+
   // Backdrops Slider
   useEffect(() => {
     if (!data || !data.images?.backdrops?.length) return;
@@ -84,13 +97,32 @@ const Details: React.FC = () => {
 
   const handleWatchNow = () => {
     setShowPlayer(true);
-    // Wait for state update and render, then scroll
     setTimeout(() => {
         const playerSection = document.getElementById('video-player-section');
         if (playerSection) {
             playerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }, 100);
+  };
+
+  const handleSubtitleUpload = (file: File) => {
+    if (file) {
+      setSubtitleFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        if (text) {
+          const parsed = parseSubtitle(text);
+          setSubtitleCues(parsed);
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleClearSubtitle = () => {
+    setSubtitleCues([]);
+    setSubtitleFileName('');
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center dark:text-white text-gray-900">Loading details...</div>;
@@ -214,22 +246,25 @@ const Details: React.FC = () => {
               </div>
            </div>
 
-           {/* Watch Buttons */}
-           <div className="flex items-center gap-4">
-               <button 
-                 onClick={handleWatchNow}
-                 className="flex items-center px-6 py-3 bg-primary hover:bg-red-700 text-white font-bold rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-primary/30 group"
-               >
-                 <Play size={20} className="mr-2 fill-current group-hover:scale-110 transition-transform" /> Watch Now
-               </button>
-               {trailer && (
-                 <button 
-                   onClick={() => { setVideoError(false); setIsTrailerOpen(true); }}
-                   className="flex items-center px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-bold rounded-lg transition-transform transform hover:scale-105 border border-white/20"
-                 >
-                   <PlayCircle size={20} className="mr-2" /> Trailer
-                 </button>
-               )}
+           {/* Hero Actions Container */}
+           <div className="flex flex-col gap-5 items-start animate-fade-in-up">
+               {/* Primary Actions: Watch & Trailer */}
+               <div className="flex flex-wrap items-center gap-4">
+                   <button 
+                     onClick={handleWatchNow}
+                     className="flex items-center px-6 py-3 bg-primary hover:bg-red-700 text-white font-bold rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-primary/30 group"
+                   >
+                     <Play size={20} className="mr-2 fill-current group-hover:scale-110 transition-transform" /> Watch Now
+                   </button>
+                   {trailer && (
+                     <button 
+                       onClick={() => { setVideoError(false); setIsTrailerOpen(true); }}
+                       className="flex items-center px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-bold rounded-lg transition-transform transform hover:scale-105 border border-white/20"
+                     >
+                       <PlayCircle size={20} className="mr-2" /> Trailer
+                     </button>
+                   )}
+               </div>
            </div>
         </div>
       </div>
@@ -307,6 +342,10 @@ const Details: React.FC = () => {
                         season={season}
                         episode={episode}
                         isAnime={isAnime}
+                        subtitleCues={subtitleCues}
+                        subtitleFileName={subtitleFileName}
+                        onSubtitleUpload={handleSubtitleUpload}
+                        onClearSubtitle={handleClearSubtitle}
                     />
                 </div>
 
