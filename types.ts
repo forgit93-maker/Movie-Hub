@@ -1,3 +1,4 @@
+
 export interface Movie {
   id: number;
   title?: string;
@@ -129,4 +130,12 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: number;
+}
+
+export interface SubtitleStyle {
+  color: string;
+  fontSize: number; // in pixels
+  backgroundColor: string; // 'transparent' | 'rgba(0,0,0,0.5)' | 'black'
+  hasShadow: boolean;
+  opacity: number;
 }
