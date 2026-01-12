@@ -1,6 +1,6 @@
 
 export interface Movie {
-  id: number | string;
+  id: number;
   title?: string;
   name?: string;
   poster_path: string | null;
@@ -123,8 +123,8 @@ export interface User {
   email: string;
   photoURL?: string | null;
   language?: 'en' | 'si' | 'ta';
-  watchlist: (number | string)[];
-  favorites: (number | string)[];
+  watchlist: number[];
+  favorites: number[];
 }
 
 export interface ChatMessage {
