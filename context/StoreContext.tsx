@@ -17,17 +17,17 @@ interface StoreContextType {
   signup: (email: string, password: string) => Promise<void>;
   googleSignIn: () => Promise<void>;
   logout: () => Promise<void>;
-  watchlist: (number | string)[];
-  addToWatchlist: (id: number | string) => void;
-  removeFromWatchlist: (id: number | string) => void;
-  isWatchlisted: (id: number | string) => boolean;
+  watchlist: number[];
+  addToWatchlist: (id: number) => void;
+  removeFromWatchlist: (id: number) => void;
+  isWatchlisted: (id: number) => boolean;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [watchlist, setWatchlist] = useState<(number | string)[]>([]);
+  const [watchlist, setWatchlist] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Handle Firebase Auth & Firestore Sync
@@ -129,8 +129,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Watchlist Functions (Now syncing to Firestore)
-  const addToWatchlist = async (id: number | string) => {
-    if (!user) return;
+  const addToWatchlist = async (id: number) => {
+    if (typeof id !== 'number' || !user) return;
     if (!watchlist.includes(id)) {
       const newList = [...watchlist, id];
       setWatchlist(newList);
@@ -139,15 +139,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const removeFromWatchlist = async (id: number | string) => {
-    if (!user) return;
+  const removeFromWatchlist = async (id: number) => {
+    if (typeof id !== 'number' || !user) return;
     const newList = watchlist.filter(itemId => itemId !== id);
     setWatchlist(newList);
     // Update Firestore
     await setDoc(doc(db, 'users', user.id), { watchlist: newList }, { merge: true });
   };
 
-  const isWatchlisted = (id: number | string) => watchlist.includes(id);
+  const isWatchlisted = (id: number) => watchlist.includes(id);
 
   return (
     <StoreContext.Provider value={{ 
