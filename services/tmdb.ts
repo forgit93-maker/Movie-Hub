@@ -1,5 +1,6 @@
+
 import axios from 'axios';
-import { Movie, MovieDetails, SeasonDetails } from '../types';
+import { Movie, MovieDetails, SeasonDetails, PersonDetails, PersonExternalIds } from '../types';
 
 const API_KEY = '48a8490f258006ed14e678a6a39819ec';
 const BASE_URL = 'https://api.themoviedb.org/3';
@@ -16,6 +17,8 @@ const api = axios.create({
 
 export const getImageUrl = (path: string | null, size: 'w500' | 'original' = 'w500') => {
   if (!path) return 'https://picsum.photos/500/750?grayscale';
+  // Check if it's already a full URL (e.g. from YouTube)
+  if (path.startsWith('http')) return path;
   return `${IMAGE_BASE_URL}/${size}${path}`;
 };
 
@@ -44,7 +47,11 @@ export const tmdbService = {
     }
   },
 
-  getDetails: async (type: 'movie' | 'tv', id: number): Promise<MovieDetails> => {
+  getDetails: async (type: 'movie' | 'tv', id: number | string): Promise<MovieDetails> => {
+    // If ID is string and starts with yt_, it shouldn't be here calling TMDB, but just in case
+    if (typeof id === 'string' && id.startsWith('yt_')) {
+        throw new Error("Cannot fetch TMDB details for YouTube ID");
+    }
     const response = await api.get<MovieDetails>(`/${type}/${id}`, {
       params: {
         append_to_response: 'credits,videos,reviews,similar,images',
@@ -121,5 +128,20 @@ export const tmdbService = {
       console.error(`Error fetching top rated ${type}:`, error);
       return [];
     }
+  },
+
+  getPerson: async (id: number): Promise<PersonDetails> => {
+    const response = await api.get<PersonDetails>(`/person/${id}`);
+    return response.data;
+  },
+
+  getPersonExternalIds: async (id: number): Promise<PersonExternalIds> => {
+    const response = await api.get<PersonExternalIds>(`/person/${id}/external_ids`);
+    return response.data;
+  },
+
+  getPersonCredits: async (id: number): Promise<{ cast: Movie[] }> => {
+    const response = await api.get<{ cast: Movie[] }>(`/person/${id}/combined_credits`);
+    return response.data;
   }
 };
