@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { StoreProvider } from './context/StoreContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -16,6 +17,7 @@ import Search from './pages/Search';
 import Favorites from './pages/Favorites';
 import Account from './pages/Account';
 import Blog from './pages/Blog';
+import ActorDetails from './pages/ActorDetails';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Layout component to handle location-based styles inside the Router context
@@ -38,6 +40,7 @@ const AppLayout: React.FC = () => {
           <Route path="/movies" element={<Movies />} /> 
           <Route path="/tv" element={<TVSeries />} /> 
           <Route path="/details/:type/:id" element={<Details />} />
+          <Route path="/actor/:id" element={<ActorDetails />} />
           <Route path="/search" element={<Search />} />
           <Route path="/login" element={<Login />} />
           <Route path="/blog" element={<Blog />} />
@@ -71,9 +74,8 @@ const AppLayout: React.FC = () => {
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize Theme, Loading State, and Intro Sound
+  // Initialize Theme and Loading State
   useEffect(() => {
     // 1. Theme Setup
     const savedTheme = localStorage.getItem('theme');
@@ -88,32 +90,10 @@ function App() {
     // 2. Loading Screen Timer (2.5 seconds)
     const timer = setTimeout(() => {
       setIsLoading(false);
-      playIntroSound();
     }, 2500);
 
     return () => clearTimeout(timer);
   }, []);
-
-  const playIntroSound = () => {
-    // Attempt to play intro sound
-    try {
-      if (!audioRef.current) {
-        audioRef.current = new Audio('videoplayback.m4a');
-        audioRef.current.volume = 0.5;
-      }
-      
-      const playPromise = audioRef.current.play();
-      
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          // Auto-play was prevented. This is expected in many browsers without prior interaction.
-          console.log("Intro sound blocked by browser policy (requires interaction).");
-        });
-      }
-    } catch (e) {
-      console.error("Error playing intro sound:", e);
-    }
-  };
 
   // Show Loading Screen before mounting the main app
   if (isLoading) {

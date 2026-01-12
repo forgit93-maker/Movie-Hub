@@ -1,6 +1,6 @@
 
 export interface Movie {
-  id: number;
+  id: number | string;
   title?: string;
   name?: string;
   poster_path: string | null;
@@ -123,8 +123,8 @@ export interface User {
   email: string;
   photoURL?: string | null;
   language?: 'en' | 'si' | 'ta';
-  watchlist: number[];
-  favorites: number[];
+  watchlist: (number | string)[];
+  favorites: (number | string)[];
 }
 
 export interface ChatMessage {
@@ -139,4 +139,25 @@ export interface SubtitleStyle {
   backgroundColor: string; // 'transparent' | 'rgba(0,0,0,0.5)' | 'black'
   hasShadow: boolean;
   opacity: number;
+}
+
+export interface PersonDetails {
+  id: number;
+  name: string;
+  biography: string;
+  birthday: string | null;
+  place_of_birth: string | null;
+  profile_path: string | null;
+  known_for_department: string;
+  images?: {
+    profiles: Image[];
+  };
+}
+
+export interface PersonExternalIds {
+  id: number;
+  imdb_id?: string | null;
+  facebook_id?: string | null;
+  instagram_id?: string | null;
+  twitter_id?: string | null;
 }
