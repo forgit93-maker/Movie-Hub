@@ -34,8 +34,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [iframeKey, setIframeKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // PARENT CONTAINER REF for Custom Fullscreen
-  // We wrap the Iframe and SubtitleOverlay here so both stay visible in fullscreen
+  // PARENT CONTAINER REF for Custom Fullscreen (Wrapper-based)
   const playerContainerRef = useRef<HTMLDivElement>(null);
 
   // --- SUBTITLE STATE ---
@@ -141,6 +140,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, [isSubsPlaying]);
 
+  // Orientation Listener for Mobile Landscape Auto-Fullscreen
+  useEffect(() => {
+    const handleOrientation = () => {
+        const isLandscape = window.screen.orientation?.type.includes('landscape') 
+                            || window.orientation === 90 
+                            || window.orientation === -90;
+        
+        if (isLandscape && window.innerWidth < 1024 && playerContainerRef.current) {
+            if (!document.fullscreenElement) {
+               playerContainerRef.current.requestFullscreen().catch(() => {});
+            }
+        }
+    };
+
+    if (window.screen.orientation) {
+        window.screen.orientation.addEventListener('change', handleOrientation);
+    }
+    window.addEventListener('orientationchange', handleOrientation);
+
+    return () => {
+        if (window.screen.orientation) {
+            window.screen.orientation.removeEventListener('change', handleOrientation);
+        }
+        window.removeEventListener('orientationchange', handleOrientation);
+    };
+  }, []);
+
   const toggleSubTimer = () => setIsSubsPlaying(!isSubsPlaying);
   const adjustSync = (amount: number) => setSyncOffset(prev => prev + amount);
   
@@ -152,11 +178,37 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // RAPIDAPI DOWNLOAD GENERATOR (Using specific key)
+  // --- AUDIO FEEDBACK ---
+  const playDownloadSound = () => {
+    try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        // Premium "Confirmation Pop" sound
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.3);
+    } catch (e) {
+        console.warn("Audio context not supported");
+    }
+  };
+
+  // --- DOWNLOAD LOGIC ---
   const generateDownloadLink = async (quality: string) => {
     setIsGeneratingLink(true);
+    playDownloadSound();
     
-    // 1. Construct the base vidsrc.pm URL
+    // 1. Construct the Source URL (VidSrc.pm)
     let sourceUrl = "";
     if (type === 'movie') {
         sourceUrl = `https://vidsrc.pm/download/movie/${tmdbId}`;
@@ -164,12 +216,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         sourceUrl = `https://vidsrc.pm/download/tv?tmdb=${tmdbId}&sea=${season}&epi=${episode}`;
     }
 
-    // 2. Define API Config
     const rapidApiKey = 'bc98d5efd1msh9568cc76df1a18fp1a7e90jsnf632bef6dec7';
     const rapidApiHost = 'download-all-in-one-ultimate.p.rapidapi.com';
 
     try {
-        const response = await axios.get('https://download-all-in-one-ultimate.p.rapidapi.com/autolink', {
+        // 2. Call RapidAPI to extract the direct link
+        // We simulate a slight network delay for the "Premium Loading" effect if response is too fast
+        const minTime = new Promise(resolve => setTimeout(resolve, 1500));
+        const apiCall = axios.get('https://download-all-in-one-ultimate.p.rapidapi.com/autolink', {
             params: { url: sourceUrl },
             headers: {
                 'x-rapidapi-key': rapidApiKey,
@@ -177,17 +231,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
         });
 
+        const [response] = await Promise.all([apiCall, minTime]);
+
         // 3. Handle Response
-        if (response.data && response.data.downloadLink) {
-             window.open(response.data.downloadLink, '_blank');
-        } else if (response.data && response.data.url) {
-             window.open(response.data.url, '_blank');
+        if (response.data && (response.data.downloadLink || response.data.url)) {
+             const finalLink = response.data.downloadLink || response.data.url;
+             window.open(finalLink, '_blank');
         } else {
-             // Fallback: Open source URL directly
+             // Fallback to source
              window.open(sourceUrl, '_blank');
         }
     } catch (error) {
-        console.error("API Error, falling back to source:", error);
+        console.error("Download API Error, falling back to source:", error);
         window.open(sourceUrl, '_blank');
     } finally {
         setIsGeneratingLink(false);
@@ -237,9 +292,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       {/* FULLSCREEN WRAPPER CONTAINER */}
-      {/* Contains: Iframe, Subtitle Overlay, Loading Overlay, Fullscreen Button */}
       <div 
         ref={playerContainerRef}
+        id="player-wrapper"
         className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800 ring-1 ring-white/10 group flex flex-col justify-center"
       >
         {/* Loading Overlay */}
@@ -255,14 +310,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         )}
 
-        {/* Subtitle Overlay (Inside wrapper for fullscreen visibility) */}
+        {/* Subtitle Overlay */}
         {subtitleCues.length > 0 && (
-            <SubtitleOverlay 
-                cues={subtitleCues} 
-                currentTime={subTime} 
-                offset={syncOffset} 
-                style={subStyle}
-            />
+            <div className="absolute inset-0 pointer-events-none z-[9999]">
+                 <SubtitleOverlay 
+                    cues={subtitleCues} 
+                    currentTime={subTime} 
+                    offset={syncOffset} 
+                    style={subStyle}
+                />
+            </div>
         )}
 
         {/* The Iframe */}
@@ -270,14 +327,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           key={iframeKey}
           src={servers[currentServer].url}
           title="Video Player"
-          className="w-full h-full absolute inset-0 z-0"
-          allowFullScreen
+          className="w-full h-full absolute inset-0 z-0 object-contain"
+          allowFullScreen={false} 
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           onLoad={() => setIsLoading(false)}
         />
 
         {/* Custom Fullscreen Button */}
-        <div className="absolute top-4 right-4 z-[1000] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="absolute top-4 right-4 z-[10000] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
              <button 
                onClick={toggleFullscreen}
                className="p-2.5 bg-black/60 hover:bg-black/90 rounded-full text-white backdrop-blur-md border border-white/10 shadow-lg transform active:scale-95 transition-all"
@@ -361,7 +418,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           {subtitleCues.length > 0 ? (
               <div className="flex flex-wrap items-center gap-3 bg-gray-900/50 p-2 rounded border border-gray-700 mt-2">
                   
-                  {/* PLAY & SYNC CONTROLS (GROUPED ADJACENT) */}
+                  {/* PLAY & SYNC CONTROLS */}
                   <div className="flex items-center gap-3">
                       {/* Play/Pause */}
                       <button 
@@ -431,7 +488,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       {/* --- DUAL SETTINGS PANEL (EXTERNAL BLOCK) --- */}
-      {/* Moved outside playerContainerRef so it appears below tools, scrollable on mobile */}
       <SettingsPanel 
         isOpen={activePanel !== 'none'}
         mode={activePanel === 'download' ? 'download' : 'subtitles'}

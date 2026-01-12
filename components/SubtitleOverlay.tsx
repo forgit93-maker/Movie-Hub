@@ -40,7 +40,7 @@ const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ cues, currentTime, of
 
   return (
     <div 
-      className="absolute inset-x-0 bottom-[10%] z-[999] flex flex-col items-center justify-end pointer-events-none p-4"
+      className="absolute inset-x-0 bottom-[10%] z-[9999] flex flex-col items-center justify-end pointer-events-none p-4"
       aria-hidden="true"
     >
       <div style={{ opacity: style.opacity }}>

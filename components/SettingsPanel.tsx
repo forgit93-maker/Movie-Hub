@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Type, Check, Monitor, Smartphone, Wifi, Download, Layers, Settings2, Palette } from 'lucide-react';
+import { X, Type, Check, Monitor, Smartphone, Wifi, Download, Layers, Settings2, Palette, ShieldCheck } from 'lucide-react';
 import { SubtitleStyle } from '../types';
 
 interface SettingsPanelProps {
@@ -61,7 +61,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             ) : (
                 <>
                     <Download size={20} className="text-blue-500" />
-                    <span className="text-lg">Download Quality</span>
+                    <span className="text-lg">Download Manager</span>
                 </>
             )}
           </div>
@@ -166,46 +166,57 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
           {mode === 'download' && (
               <div className="space-y-6">
                 {isGeneratingLink ? (
-                    <div className="flex flex-col items-center justify-center py-12 space-y-6">
+                    <div className="flex flex-col items-center justify-center py-16 space-y-8 bg-black/20 rounded-xl border border-dashed border-gray-800">
                         <div className="relative">
-                            <div className="w-16 h-16 border-4 border-gray-700 border-t-primary rounded-full animate-spin"></div>
+                             {/* Premium Spinner */}
+                            <div className="w-20 h-20 border-4 border-gray-800 border-t-blue-500 rounded-full animate-spin"></div>
                             <div className="absolute inset-0 flex items-center justify-center">
-                                <Download size={24} className="text-primary" />
+                                <Download size={28} className="text-blue-500 animate-pulse" />
                             </div>
                         </div>
-                        <div className="text-center">
-                            <p className="text-white font-bold text-lg mb-1">Generating Link...</p>
-                            <p className="text-sm text-gray-500">Connecting to High-Speed Secure Server</p>
+                        <div className="text-center space-y-2">
+                            <p className="text-white font-bold text-xl tracking-tight">Generating Link...</p>
+                            <div className="flex items-center justify-center gap-2 text-xs text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+                               <ShieldCheck size={12} />
+                               <span>Secure High-Speed Connection</span>
+                            </div>
                         </div>
                     </div>
                 ) : (
                     <>
                         <div className="grid grid-cols-1 gap-3">
+                            <p className="text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Select Quality</p>
                             {downloadQualities.map((quality, idx) => (
                             <button
                                 key={idx}
                                 onClick={() => onDownload(quality.id)}
-                                className="relative flex items-center justify-between p-4 rounded-xl bg-gray-800/50 border border-gray-700 hover:bg-gray-800 hover:border-blue-500/50 transition-all duration-200 group active:scale-[0.98]"
+                                className="relative flex items-center justify-between p-4 rounded-xl bg-gray-800/40 border border-gray-700 hover:bg-gray-800 hover:border-blue-500/50 transition-all duration-300 group active:scale-[0.98] overflow-hidden"
                             >
-                                <div className="flex items-center gap-4">
-                                <div className={`p-3 rounded-full bg-black/40 text-gray-400 group-hover:text-white transition shadow-inner`}>
-                                    <quality.icon size={20} />
+                                {/* Hover Glow */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                <div className="flex items-center gap-4 relative z-10">
+                                    <div className={`p-3 rounded-full bg-black/40 text-gray-400 group-hover:text-white transition shadow-inner border border-white/5`}>
+                                        <quality.icon size={24} />
+                                    </div>
+                                    <div className="text-left">
+                                        <span className="block text-white font-bold text-lg leading-tight">{quality.label}</span>
+                                        <span className="block text-gray-500 text-xs font-medium uppercase mt-1">MP4 • Direct Link</span>
+                                    </div>
                                 </div>
-                                <div className="text-left">
-                                    <span className="block text-white font-bold text-base">{quality.label}</span>
-                                    <span className="block text-gray-500 text-xs uppercase mt-0.5">High Speed • Direct</span>
-                                </div>
-                                </div>
-                                <span className={`text-[10px] font-bold px-2 py-1 rounded bg-gradient-to-r ${quality.color} text-white shadow-lg`}>
+                                <span className={`relative z-10 text-[10px] font-black px-2 py-1 rounded bg-gradient-to-r ${quality.color} text-white shadow-lg tracking-wide`}>
                                     {quality.badge}
                                 </span>
                             </button>
                             ))}
                         </div>
                         
-                        <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-3">
-                            <p className="text-[10px] text-center text-blue-300">
-                                Note: Downloads are powered by rapid secure servers. Pop-ups may occur depending on the source.
+                        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/20 rounded-lg p-4 flex gap-3">
+                            <div className="shrink-0 pt-0.5">
+                                <ShieldCheck size={16} className="text-blue-400" />
+                            </div>
+                            <p className="text-[11px] leading-relaxed text-blue-200/80">
+                                <strong className="text-blue-200">Pro Tip:</strong> Use the 1080p option for the best balance between quality and file size on mobile devices.
                             </p>
                         </div>
                     </>
