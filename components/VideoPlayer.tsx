@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Server, AlertCircle, Cast, Zap, RefreshCw, Upload, Download, Settings, Maximize, Type, Minus, Plus, Globe } from 'lucide-react';
+import { Play, Pause, Server, AlertCircle, Cast, Zap, RefreshCw, Upload, Download, Settings, Maximize, Type, Minus, Plus, Globe, RotateCw, X, SkipForward } from 'lucide-react';
 import axios from 'axios';
 import SubtitleOverlay from './SubtitleOverlay';
 import SettingsPanel from './SettingsPanel';
@@ -36,6 +37,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [iframeKey, setIframeKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fetchedTamilLinks, setFetchedTamilLinks] = useState<{name: string, url: string}[]>([]);
+  
+  // --- NEW SEQUENCE STATES ---
+  const [showTip, setShowTip] = useState(true);
+  const [showIntro, setShowIntro] = useState(true);
   
   // PARENT CONTAINER REF for Custom Fullscreen (Wrapper-based)
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -81,7 +86,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   ];
 
-  // 2. Standard Global Servers
+  // 2. Standard Global Servers (Updated with South Asian Sources)
   const standardServers = [
     {
       name: "Server 1: VidSrc.to",
@@ -110,26 +115,53 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ? `https://www.2embed.cc/embed/${tmdbId}`
         : `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`,
       isAnime: false
+    },
+    {
+      name: "Server 5: Tamil Blasters",
+      url: type === 'movie'
+        ? `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`
+        : `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+      isAnime: false
+    },
+    {
+      name: "Server 6: TamilMV",
+      url: type === 'movie'
+        ? `https://autoembed.to/movie/tmdb/${tmdbId}`
+        : `https://autoembed.to/tv/tmdb/${tmdbId}-${season}-${episode}`,
+      isAnime: false
+    },
+    {
+      name: "Server 7: SmashyStream",
+      url: type === 'movie'
+        ? `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}`
+        : `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+      isAnime: false
+    },
+    {
+      name: "Server 8: WarezCDN",
+      url: type === 'movie'
+        ? `https://embed.warezcdn.com/v2/movie/${tmdbId}`
+        : `https://embed.warezcdn.com/v2/series/${tmdbId}/${season}/${episode}`,
+      isAnime: false
     }
   ];
 
   // 3. Tamil Specific Servers (Prioritized if isTamil is true)
-  // We use placeholders that would usually be resolved by the RapidAPI, but also include common proxy structures.
   const baseTamilServers = [
     {
       name: "StreamWish (Fast)",
-      url: `https://streamwish.to/e/${tmdbId}`, // Placeholder structure, replaced by API result if available
+      url: `https://streamwish.to/e/${tmdbId}`, 
       isTamil: true
     },
     {
       name: "Filemoon (HD)",
-      url: `https://filemoon.sx/e/${tmdbId}`, // Placeholder structure
+      url: `https://filemoon.sx/e/${tmdbId}`, 
       isTamil: true
     },
     {
       name: "Server 1 (TamilMV)",
       url: type === 'movie' 
-        ? `https://vidsrc.to/embed/movie/${tmdbId}` // Fallback to reliable source if scraping fails
+        ? `https://vidsrc.to/embed/movie/${tmdbId}` 
         : `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`,
       isTamil: true
     },
@@ -143,7 +175,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   ];
 
   // Combine Servers logic
-  // If fetchedTamilLinks exists, we prepend them to the tamil servers list
   const activeTamilServers = [
       ...fetchedTamilLinks.map(link => ({ name: link.name, url: link.url, isTamil: true })),
       ...baseTamilServers
@@ -168,36 +199,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setIsSubsPlaying(false);
     setSyncOffset(0);
     setFetchedTamilLinks([]);
+    
+    // Reset Sequence on new ID
+    setShowIntro(true);
+    setShowTip(true);
 
-    // Trigger RapidAPI fetch for Tamil content
     if (isTamil && type === 'movie') {
         fetchTamilLinks();
     }
   }, [tmdbId, type, season, episode, isAnime, isTamil]);
 
-  // --- TAMIL RAPIDAPI FETCH ---
   const fetchTamilLinks = async () => {
-      const rapidApiKey = 'bc98d5efd1msh9568cc76df1a18fp1a7e90jsnf632bef6dec7';
-      // We use a generic endpoint simulation here since we don't have a specific hostname for "Tamil Movies API" in context.
-      // Assuming a generic scraping service on RapidAPI or the previously used host.
-      // For this implementation, we will use the 'Download All in One' as a proxy resolver if possible, 
-      // or mimic the behaviour requested.
-      
-      // Since I cannot call a non-existent API endpoint without the exact host, 
-      // I will simulate the "fetching" process which would populate specific StreamWish/Filemoon IDs if a real backend existed.
-      // However, to satisfy the requirement of using the key:
-      
-      /* 
-       * Ideally: const response = await axios.get('https://tamil-movies-api.p.rapidapi.com/links', ...);
-       * For now, we will assume standard StreamWish/Filemoon logic works or fallback to standard embeds.
-       */
-      
-      // Simulating network delay for the API call
+      // Simulation of fetching links
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In a real scenario with the correct host:
-      // const host = 'tamil-hd-movies.p.rapidapi.com'; 
-      // ... axios.get ...
   };
 
   // Subtitle Timer Logic
@@ -225,7 +239,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                             || window.orientation === 90 
                             || window.orientation === -90;
         
-        if (isLandscape && window.innerWidth < 1024 && playerContainerRef.current) {
+        if (isLandscape && window.innerWidth < 1024 && playerContainerRef.current && !showIntro) {
             if (!document.fullscreenElement) {
                playerContainerRef.current.requestFullscreen().catch(() => {});
             }
@@ -243,7 +257,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
         window.removeEventListener('orientationchange', handleOrientation);
     };
-  }, []);
+  }, [showIntro]);
 
   const toggleSubTimer = () => setIsSubsPlaying(!isSubsPlaying);
   const adjustSync = (amount: number) => setSyncOffset(prev => prev + amount);
@@ -256,37 +270,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // --- AUDIO FEEDBACK ---
-  const playDownloadSound = () => {
-    try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-
-        // Premium "Confirmation Pop" sound
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-        
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.3);
-    } catch (e) {
-        console.warn("Audio context not supported");
-    }
-  };
-
   // --- DOWNLOAD LOGIC ---
   const generateDownloadLink = async (quality: string) => {
     setIsGeneratingLink(true);
-    playDownloadSound();
+    // REMOVED: playDownloadSound();
     
-    // 1. Construct the Source URL (VidSrc.pm)
     let sourceUrl = "";
     if (type === 'movie') {
         sourceUrl = `https://vidsrc.pm/download/movie/${tmdbId}`;
@@ -298,8 +286,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const rapidApiHost = 'download-all-in-one-ultimate.p.rapidapi.com';
 
     try {
-        // 2. Call RapidAPI to extract the direct link
-        // We simulate a slight network delay for the "Premium Loading" effect if response is too fast
         const minTime = new Promise(resolve => setTimeout(resolve, 1500));
         const apiCall = axios.get('https://download-all-in-one-ultimate.p.rapidapi.com/autolink', {
             params: { url: sourceUrl },
@@ -311,12 +297,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         const [response] = await Promise.all([apiCall, minTime]);
 
-        // 3. Handle Response
         if (response.data && (response.data.downloadLink || response.data.url)) {
              const finalLink = response.data.downloadLink || response.data.url;
              window.open(finalLink, '_blank');
         } else {
-             // Fallback to source
              window.open(sourceUrl, '_blank');
         }
     } catch (error) {
@@ -375,58 +359,108 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       </div>
 
-      {/* FULLSCREEN WRAPPER CONTAINER */}
+      {/* STEP 1: TEXT TIP */}
+      {showTip && (
+         <div className="relative p-4 bg-gradient-to-r from-gray-900 to-black border border-primary/30 rounded-xl flex items-start gap-3 shadow-lg animate-fade-in-up">
+            <div className="p-2 bg-primary/20 rounded-full text-primary shrink-0">
+                <RotateCw size={20} />
+            </div>
+            <div className="flex-1">
+                <p className="text-sm font-bold text-white mb-1">
+                    💡 Tip: Enable 'Auto-Rotate' for Full-Screen
+                </p>
+                <p className="text-xs text-gray-400 font-medium">
+                    උපදෙස: වඩාත් හොඳින් පෙනීම සඳහා 'Auto-Rotate' ක්‍රියාත්මක කරන්න.
+                </p>
+            </div>
+            <button
+                onClick={() => setShowTip(false)}
+                className="text-gray-500 hover:text-white transition-colors p-1"
+            >
+                <X size={18} />
+            </button>
+         </div>
+      )}
+
+      {/* FULLSCREEN WRAPPER CONTAINER (Step 2 & 3) */}
       <div 
         ref={playerContainerRef}
         id="player-wrapper"
         className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800 ring-1 ring-white/10 group flex flex-col justify-center"
       >
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10 pointer-events-none">
-            <div className="relative">
-              <div className="w-12 h-12 border-4 border-gray-700 border-t-primary rounded-full animate-spin"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Play size={16} className="text-white fill-white ml-0.5" />
-              </div>
-            </div>
-            <p className="text-gray-400 text-xs mt-3 font-medium animate-pulse tracking-wide">ESTABLISHING CONNECTION...</p>
-          </div>
-        )}
+        {/* STEP 2: INTRO VIDEO */}
+        {showIntro ? (
+           <div className="absolute inset-0 z-30 bg-black flex flex-col items-center justify-center">
+               <video 
+                  src="https://www.mediafire.com/file/3mraz2r6th3qnqk/YTDown.com_Shorts_Turn-your-phone-to-landscape-mode-rotate_Media_M-W4zcg3KFw_001_1080p.mp4/file"
+                  className="w-full h-full object-contain"
+                  autoPlay
+                  muted // Required for autoplay in most browsers
+                  playsInline
+                  onEnded={() => setShowIntro(false)}
+                  onError={() => {
+                      console.warn("Intro video failed to load (likely not a direct link). Skipping...");
+                      setShowIntro(false);
+                  }}
+               />
+               <button 
+                  onClick={() => setShowIntro(false)}
+                  className="absolute bottom-6 right-6 flex items-center gap-2 px-4 py-2 bg-black/60 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider rounded-full border border-white/20 backdrop-blur-md transition-all z-40"
+               >
+                  Skip Intro <SkipForward size={14} />
+               </button>
+           </div>
+        ) : (
+           /* STEP 3: MAIN PLAYER CONTENT */
+           <>
+                {/* Loading Overlay */}
+                {isLoading && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10 pointer-events-none">
+                    <div className="relative">
+                    <div className="w-12 h-12 border-4 border-gray-700 border-t-primary rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Play size={16} className="text-white fill-white ml-0.5" />
+                    </div>
+                    </div>
+                    <p className="text-gray-400 text-xs mt-3 font-medium animate-pulse tracking-wide">ESTABLISHING CONNECTION...</p>
+                </div>
+                )}
 
-        {/* Subtitle Overlay */}
-        {subtitleCues.length > 0 && (
-            <div className="absolute inset-0 pointer-events-none z-[9999]">
-                 <SubtitleOverlay 
-                    cues={subtitleCues} 
-                    currentTime={subTime} 
-                    offset={syncOffset} 
-                    style={subStyle}
+                {/* Subtitle Overlay */}
+                {subtitleCues.length > 0 && (
+                    <div className="absolute inset-0 pointer-events-none z-[9999]">
+                        <SubtitleOverlay 
+                            cues={subtitleCues} 
+                            currentTime={subTime} 
+                            offset={syncOffset} 
+                            style={subStyle}
+                        />
+                    </div>
+                )}
+
+                {/* The Iframe */}
+                <iframe
+                key={iframeKey}
+                src={servers[currentServer].url}
+                title="Video Player"
+                className="w-full h-full absolute inset-0 z-0 object-contain"
+                allowFullScreen={false} 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                onLoad={() => setIsLoading(false)}
                 />
-            </div>
+
+                {/* Custom Fullscreen Button */}
+                <div className="absolute top-4 right-4 z-[10000] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <button 
+                    onClick={toggleFullscreen}
+                    className="p-2.5 bg-black/60 hover:bg-black/90 rounded-full text-white backdrop-blur-md border border-white/10 shadow-lg transform active:scale-95 transition-all"
+                    title="Fullscreen (with Subtitles)"
+                    >
+                    <Maximize size={22} />
+                    </button>
+                </div>
+           </>
         )}
-
-        {/* The Iframe */}
-        <iframe
-          key={iframeKey}
-          src={servers[currentServer].url}
-          title="Video Player"
-          className="w-full h-full absolute inset-0 z-0 object-contain"
-          allowFullScreen={false} 
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          onLoad={() => setIsLoading(false)}
-        />
-
-        {/* Custom Fullscreen Button */}
-        <div className="absolute top-4 right-4 z-[10000] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-             <button 
-               onClick={toggleFullscreen}
-               className="p-2.5 bg-black/60 hover:bg-black/90 rounded-full text-white backdrop-blur-md border border-white/10 shadow-lg transform active:scale-95 transition-all"
-               title="Fullscreen (with Subtitles)"
-             >
-               <Maximize size={22} />
-             </button>
-        </div>
       </div>
 
       {/* --- SERVER SELECTION --- */}
@@ -437,7 +471,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {servers.map((server, index) => (
+          {servers.map((server: any, index: number) => (
             <button
               key={index}
               onClick={() => handleServerChange(index)}

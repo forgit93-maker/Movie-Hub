@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, PlayCircle } from 'lucide-react';
@@ -17,36 +18,11 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, featured = false }) => {
   const year = rawDate ? rawDate.split('-')[0] : '';
   const mediaType = movie.media_type || (movie.title ? 'movie' : 'tv');
 
-  const handleCardClick = () => {
-    // Basic "pop" sound using Web Audio API to avoid external file dependencies
-    try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Frequency 800Hz
-        oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1); // Drop to 300Hz
-
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.1);
-    } catch (e) {
-        // Silently fail if audio context not supported or blocked
-    }
-  };
-
   return (
     <div className={`relative group w-full ${featured ? 'h-full' : 'w-[140px] md:w-[180px] flex-shrink-0'}`}>
       <Link 
         to={`/details/${mediaType}/${movie.id}`} 
         className="block h-full"
-        onClick={handleCardClick}
       >
         {/* Card Container */}
         <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-900 shadow-md">

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Sun, Moon, X } from 'lucide-react';
@@ -19,18 +20,25 @@ const Navbar: React.FC = () => {
 
   // Real-time Search Logic with Debounce
   useEffect(() => {
-    // Only navigate if there is a query, and we are not already on the search page with that query
-    // or if we are typing on another page.
     if (!searchQuery.trim() && !location.pathname.includes('/search')) return;
 
     const delayDebounceFn = setTimeout(() => {
       if (searchQuery.trim()) {
         navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       }
-    }, 300); // 300ms debounce for "Search-as-you-type"
+    }, 500); // Increased debounce slightly to allow typing
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, navigate]);
+
+  // Handle Enter Key
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+        if (searchQuery.trim()) {
+             navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+        }
+    }
+  };
 
   // Sync state if URL changes externally
   useEffect(() => {
@@ -120,7 +128,7 @@ const Navbar: React.FC = () => {
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder="Type to search..."
+                  placeholder="Search movies & TV..."
                   className={`
                     absolute right-0 top-1/2 -translate-y-1/2
                     h-8
@@ -137,6 +145,7 @@ const Navbar: React.FC = () => {
                   `}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
                 />
                 <button 
                   type="button" 
@@ -200,6 +209,7 @@ const Navbar: React.FC = () => {
                 className="w-full bg-transparent text-gray-900 dark:text-white border-b-2 border-primary py-2 px-2 outline-none ring-0 focus:ring-0 placeholder-gray-500 dark:placeholder-white/50 text-base"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
               />
               <button type="button" onClick={() => setIsSearchOpen(false)} className="absolute right-2 top-2 text-gray-500 dark:text-white/60">
                  <X size={18} />
