@@ -16,6 +16,8 @@ const api = axios.create({
 
 export const getImageUrl = (path: string | null, size: 'w500' | 'original' = 'w500') => {
   if (!path) return 'https://picsum.photos/500/750?grayscale';
+  // Check if it's already a full URL (e.g. from YouTube)
+  if (path.startsWith('http')) return path;
   return `${IMAGE_BASE_URL}/${size}${path}`;
 };
 
@@ -44,7 +46,11 @@ export const tmdbService = {
     }
   },
 
-  getDetails: async (type: 'movie' | 'tv', id: number): Promise<MovieDetails> => {
+  getDetails: async (type: 'movie' | 'tv', id: number | string): Promise<MovieDetails> => {
+    // If ID is string and starts with yt_, it shouldn't be here calling TMDB, but just in case
+    if (typeof id === 'string' && id.startsWith('yt_')) {
+        throw new Error("Cannot fetch TMDB details for YouTube ID");
+    }
     const response = await api.get<MovieDetails>(`/${type}/${id}`, {
       params: {
         append_to_response: 'credits,videos,reviews,similar,images',
