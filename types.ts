@@ -1,6 +1,6 @@
 
 export interface Movie {
-  id: number;
+  id: number | string;
   title?: string;
   name?: string;
   poster_path: string | null;
@@ -12,6 +12,7 @@ export interface Movie {
   vote_count: number;
   media_type: 'movie' | 'tv';
   genre_ids?: number[];
+  original_language?: string;
 }
 
 export interface Image {
@@ -122,8 +123,8 @@ export interface User {
   email: string;
   photoURL?: string | null;
   language?: 'en' | 'si' | 'ta';
-  watchlist: number[];
-  favorites: number[];
+  watchlist: (number | string)[];
+  favorites: (number | string)[];
 }
 
 export interface ChatMessage {

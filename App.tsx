@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { StoreProvider } from './context/StoreContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -71,8 +71,9 @@ const AppLayout: React.FC = () => {
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize Theme & Loading State
+  // Initialize Theme, Loading State, and Intro Sound
   useEffect(() => {
     // 1. Theme Setup
     const savedTheme = localStorage.getItem('theme');
@@ -87,10 +88,32 @@ function App() {
     // 2. Loading Screen Timer (2.5 seconds)
     const timer = setTimeout(() => {
       setIsLoading(false);
+      playIntroSound();
     }, 2500);
 
     return () => clearTimeout(timer);
   }, []);
+
+  const playIntroSound = () => {
+    // Attempt to play intro sound
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio('videoplayback.m4a');
+        audioRef.current.volume = 0.5;
+      }
+      
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          // Auto-play was prevented. This is expected in many browsers without prior interaction.
+          console.log("Intro sound blocked by browser policy (requires interaction).");
+        });
+      }
+    } catch (e) {
+      console.error("Error playing intro sound:", e);
+    }
+  };
 
   // Show Loading Screen before mounting the main app
   if (isLoading) {
