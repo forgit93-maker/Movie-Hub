@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import YouTube from 'react-youtube';
 import { Helmet } from 'react-helmet-async';
 import { tmdbService, getImageUrl } from '../services/tmdb';
 import { MovieDetails as MovieDetailsType, Episode } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Star, Clock, PlayCircle, ArrowLeft, Check, X, ExternalLink, Share2, Copy, Facebook, Heart, Play, ChevronDown, Captions, Trash2 } from 'lucide-react';
+import { Star, Clock, PlayCircle, ArrowLeft, Check, X, ExternalLink, Share2, Copy, Facebook, Heart, Play, ChevronDown, Captions, Trash2, Youtube, Download, Loader2, Server, Globe } from 'lucide-react';
 import MovieCard from '../components/MovieCard';
 import VideoPlayer from '../components/VideoPlayer';
 import MovieDetailsLoader from '../components/MovieDetailsLoader';
 import { parseSubtitle, SubtitleCue } from '../utils/subtitleHelper';
+import { fetchYoutubeDownloads, DownloadFormat } from '../services/downloadService';
+import DownloadModal from '../components/DownloadModal';
 
 const Details: React.FC = () => {
   const { type, id } = useParams<{ type: 'movie' | 'tv'; id: string }>();
@@ -17,6 +19,12 @@ const Details: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentBackdropIndex, setCurrentBackdropIndex] = useState(0);
   
+  // --- IDENTIFICATION LOGIC ---
+  const isYouTubeContent = id?.toString().startsWith('yt_');
+  const youtubeVideoId = isYouTubeContent ? id?.toString().replace('yt_', '') : null;
+  // Use generic detection, but verify if it's explicitly Lanka Cinema via language prop
+  const isSinhalaContent = isYouTubeContent && data?.original_language === 'si';
+
   // Player State
   const [showPlayer, setShowPlayer] = useState(false);
   
@@ -36,26 +44,55 @@ const Details: React.FC = () => {
   const [videoError, setVideoError] = useState(false);
   const [copySuccess, setCopySuccess] = useState('');
   
+  // --- DOWNLOAD STATES ---
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [downloadFormats, setDownloadFormats] = useState<DownloadFormat[]>([]);
+  const [isFetchingDownloads, setIsFetchingDownloads] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const { user, addToWatchlist, removeFromWatchlist, isWatchlisted } = useStore();
 
-  // 1. Fetch Main Details
+  // 1. Fetch Main Details & Audio Logic
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setShowPlayer(false); 
       setSubtitleCues([]);
       setSubtitleFileName('');
+      
       if (type && id) {
+        if (isYouTubeContent) {
+           const mockData: MovieDetailsType = {
+               id: id as unknown as number, 
+               title: "Lanka Cinema Exclusive", 
+               original_language: 'si', // Default to si for YouTube content in this context
+               overview: "This movie is streamed directly via the Lanka Cinema Server. Enjoy high-quality Sinhala movies and TV shows.",
+               poster_path: null, 
+               backdrop_path: null,
+               vote_average: 9.2,
+               vote_count: 1000,
+               release_date: new Date().toISOString(),
+               media_type: 'movie',
+               genres: [{id: 99, name: 'Sinhala'}, {id: 100, name: 'Lanka Cinema'}],
+               credits: { cast: [], crew: [{id: 1, name: "Lanka Cinema", job: "Distributor"}] },
+               videos: { results: [] },
+               reviews: { results: [] },
+               similar: { results: [] },
+               images: { backdrops: [], posters: [] },
+               status: "Released"
+           };
+           
+           setData(mockData);
+           setLoading(false);
+           return;
+        }
+
         try {
-          // Delay slightly to prevent flickering if data loads too fast, allowing the loader to show nicely
           const minLoadTime = new Promise(resolve => setTimeout(resolve, 600));
           const request = tmdbService.getDetails(type, parseInt(id));
-          
           const [result] = await Promise.all([request, minLoadTime]);
-          
           setData(result);
           
-          // Reset defaults
           setSeason(1);
           setEpisode(1);
         } catch (error) {
@@ -66,12 +103,39 @@ const Details: React.FC = () => {
     };
     fetchData();
     window.scrollTo(0, 0);
-  }, [type, id]);
+  }, [type, id, isYouTubeContent]);
+
+  // --- AUDIO NOTIFICATION FOR SINHALA CONTENT ---
+  useEffect(() => {
+    if (isSinhalaContent && !loading) {
+        try {
+            if (!audioRef.current) {
+                audioRef.current = new Audio('videoplayback.m4a');
+                audioRef.current.volume = 0.4; // 40% Volume as requested
+            }
+            // Play for 1 second
+            const playPromise = audioRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    setTimeout(() => {
+                        if (audioRef.current) {
+                            audioRef.current.pause();
+                            audioRef.current.currentTime = 0;
+                        }
+                    }, 1000);
+                }).catch(() => {});
+            }
+        } catch (e) {
+            console.error("Audio playback failed", e);
+        }
+    }
+  }, [isSinhalaContent, loading]);
+
 
   // 2. Dynamic Episode Fetching
   useEffect(() => {
     const fetchSeasonEpisodes = async () => {
-        if (type === 'tv' && id) {
+        if (!isYouTubeContent && type === 'tv' && id) {
             setLoadingEpisodes(true);
             const seasonDetails = await tmdbService.getSeasonDetails(parseInt(id), season);
             if (seasonDetails && seasonDetails.episodes) {
@@ -83,13 +147,7 @@ const Details: React.FC = () => {
         }
     };
     fetchSeasonEpisodes();
-  }, [type, id, season]);
-
-  // Reset subtitles when episode changes
-  useEffect(() => {
-      setSubtitleCues([]);
-      setSubtitleFileName('');
-  }, [episode, season]);
+  }, [type, id, season, isYouTubeContent]);
 
   // Backdrops Slider
   useEffect(() => {
@@ -109,6 +167,25 @@ const Details: React.FC = () => {
             playerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }, 100);
+  };
+
+  // --- LANKA CINEMA DOWNLOAD HANDLER ---
+  const handleLankaDownload = async () => {
+    if (!youtubeVideoId) return;
+
+    setIsFetchingDownloads(true);
+    setDownloadFormats([]);
+
+    try {
+        const formats = await fetchYoutubeDownloads(youtubeVideoId);
+        setDownloadFormats(formats);
+        setIsDownloadModalOpen(true);
+    } catch (err) {
+        console.error("Failed to fetch downloads", err);
+        alert("Lanka Cinema Server is busy. Please try again later.");
+    } finally {
+        setIsFetchingDownloads(false);
+    }
   };
 
   const handleSubtitleUpload = (file: File) => {
@@ -139,14 +216,8 @@ const Details: React.FC = () => {
                
   const director = data.credits.crew.find(c => c.job === "Director")?.name;
   const year = new Date(data.release_date || data.first_air_date || '').getFullYear();
-  const inWatchlist = isWatchlisted(data.id);
+  const inWatchlist = isWatchlisted(data.id as any);
   const displayTitle = data.title || data.name || 'Untitled';
-  
-  // Logic to identify Anime
-  const isAnime = data.genres.some(g => 
-    g.name.toLowerCase() === 'animation' || 
-    g.name.toLowerCase() === 'anime'
-  );
   
   const backdropImages = data.images.backdrops.length > 0 
     ? data.images.backdrops.slice(0, 5) 
@@ -157,8 +228,8 @@ const Details: React.FC = () => {
       alert("Please login to manage your watchlist.");
       return;
     }
-    if (inWatchlist) removeFromWatchlist(data.id);
-    else addToWatchlist(data.id);
+    if (inWatchlist) removeFromWatchlist(data.id as any);
+    else addToWatchlist(data.id as any);
   };
 
   const handleShare = async () => {
@@ -217,20 +288,35 @@ const Details: React.FC = () => {
           <ArrowLeft size={16} className="text-white" />
         </Link>
 
-        {backdropImages.map((img, index) => (
-           <div 
-             key={img.file_path}
-             className={`absolute inset-0 transition-opacity duration-[1500ms] ease-in-out ${index === currentBackdropIndex ? 'opacity-100' : 'opacity-0'}`}
-           >
-             <img 
-               src={getImageUrl(img.file_path, 'original')} 
-               alt="" 
-               className="w-full h-full object-cover"
-             />
-             <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-black via-transparent to-transparent"></div>
-             <div className="absolute inset-0 bg-black/20"></div>
-           </div>
-        ))}
+        {isYouTubeContent ? (
+            <div className="absolute inset-0">
+               <img 
+                   src={`https://img.youtube.com/vi/${youtubeVideoId}/maxresdefault.jpg`} 
+                   alt="Lanka Cinema" 
+                   className="w-full h-full object-cover"
+                   onError={(e) => {
+                       (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+                   }}
+               />
+               <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-black via-transparent to-transparent"></div>
+               <div className="absolute inset-0 bg-black/20"></div>
+            </div>
+        ) : (
+            backdropImages.map((img, index) => (
+            <div 
+                key={img.file_path}
+                className={`absolute inset-0 transition-opacity duration-[1500ms] ease-in-out ${index === currentBackdropIndex ? 'opacity-100' : 'opacity-0'}`}
+            >
+                <img 
+                src={getImageUrl(img.file_path, 'original')} 
+                alt="" 
+                className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-black via-transparent to-transparent"></div>
+                <div className="absolute inset-0 bg-black/20"></div>
+            </div>
+            ))
+        )}
         
         <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-10">
            <h1 className="text-3xl md:text-5xl font-bold leading-tight drop-shadow-2xl mb-3 md:mb-4 text-white">
@@ -240,6 +326,11 @@ const Details: React.FC = () => {
               <span className="flex items-center text-yellow-400 font-bold bg-black/40 px-2 py-1 rounded backdrop-blur-sm border border-white/10">
                 <Star size={14} className="mr-1 fill-current"/> {data.vote_average.toFixed(1)}
               </span>
+              {isSinhalaContent && (
+                  <span className="flex items-center bg-red-600/80 px-2 py-1 rounded backdrop-blur-sm text-white border border-red-500/50">
+                    <Globe size={14} className="mr-1"/> Lanka Cinema
+                  </span>
+              )}
               {data.runtime && (
                 <span className="flex items-center bg-black/20 px-2 py-1 rounded backdrop-blur-sm text-white">
                   <Clock size={14} className="mr-1"/> {Math.floor(data.runtime / 60)}h {data.runtime % 60}m
@@ -254,21 +345,38 @@ const Details: React.FC = () => {
 
            {/* Hero Actions Container */}
            <div className="flex flex-col gap-5 items-start animate-fade-in-up">
-               {/* Primary Actions: Watch & Trailer */}
                <div className="flex flex-wrap items-center gap-4">
                    <button 
                      onClick={handleWatchNow}
                      className="flex items-center px-6 py-3 bg-primary hover:bg-red-700 text-white font-bold rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-primary/30 group"
                    >
-                     <Play size={20} className="mr-2 fill-current group-hover:scale-110 transition-transform" /> Watch Now
+                     <Play size={20} className="mr-2 fill-current group-hover:scale-110 transition-transform" /> 
+                     {isSinhalaContent ? 'Play on Lanka Server' : 'Watch Now'}
                    </button>
-                   {trailer && (
+                   
+                   {trailer && !isYouTubeContent && (
                      <button 
                        onClick={() => { setVideoError(false); setIsTrailerOpen(true); }}
                        className="flex items-center px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-bold rounded-lg transition-transform transform hover:scale-105 border border-white/20"
                      >
                        <PlayCircle size={20} className="mr-2" /> Trailer
                      </button>
+                   )}
+
+                   {/* LANKA CINEMA DOWNLOAD BUTTON */}
+                   {isSinhalaContent && (
+                       <button
+                           onClick={handleLankaDownload}
+                           disabled={isFetchingDownloads}
+                           className="flex items-center px-6 py-3 bg-gradient-to-r from-green-700 to-green-600 hover:from-green-600 hover:to-green-500 backdrop-blur-sm text-white font-bold rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-green-600/30 disabled:opacity-50 disabled:cursor-not-allowed border border-green-500/30"
+                       >
+                           {isFetchingDownloads ? (
+                               <Loader2 size={20} className="mr-2 animate-spin" />
+                           ) : (
+                               <Download size={20} className="mr-2" />
+                           )}
+                           {isFetchingDownloads ? 'Checking Server...' : 'Download via Lanka Cinema'}
+                       </button>
                    )}
                </div>
            </div>
@@ -277,7 +385,6 @@ const Details: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-10">
         <div className="max-w-4xl">
-           {/* Overview Header with Icons */}
            <div className="flex items-center justify-between mb-4">
              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">Overview</h3>
              
@@ -312,9 +419,24 @@ const Details: React.FC = () => {
                <p className="text-primary font-medium">{director}</p>
              </div>
            )}
+           
+           {/* BRANDING FOR LANKA CINEMA */}
+           {isSinhalaContent && (
+               <div className="mt-6 p-4 bg-gradient-to-r from-red-900/40 to-black border border-red-500/30 rounded-xl flex items-center gap-4 shadow-lg">
+                   <div className="p-3 bg-red-600 rounded-full text-white shadow-red-500/50 shadow-md">
+                        <Server size={24} />
+                   </div>
+                   <div>
+                       <h4 className="font-bold text-white flex items-center gap-2">
+                           Lanka Cinema Server <span className="text-[10px] bg-green-500 text-white px-2 rounded-full">ONLINE</span>
+                       </h4>
+                       <p className="text-sm text-gray-300">Premium Sinhala content streamed directly via our dedicated high-speed server.</p>
+                   </div>
+               </div>
+           )}
         </div>
 
-        {/* Top Cast Section */}
+        {!isYouTubeContent && (
         <section>
           <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white border-l-4 border-primary pl-3">Top Cast</h2>
           <div className="flex space-x-4 overflow-x-auto pb-4 hide-scrollbar">
@@ -335,103 +457,114 @@ const Details: React.FC = () => {
             ))}
           </div>
         </section>
+        )}
 
-        {/* --- VIDEO PLAYER & EPISODE SECTION (CONDITIONALLY RENDERED) --- */}
         {showPlayer && (
             <section className="pt-6 border-t border-gray-200 dark:border-gray-800 scroll-mt-24 animate-fade-in-up" id="video-player-section">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column: Player (Span 2) */}
-                <div className="lg:col-span-2 space-y-4">
-                    <VideoPlayer 
-                        tmdbId={parseInt(id!)} 
-                        type={type as 'movie' | 'tv'} 
-                        season={season}
-                        episode={episode}
-                        isAnime={isAnime}
-                        subtitleCues={subtitleCues}
-                        subtitleFileName={subtitleFileName}
-                        onSubtitleUpload={handleSubtitleUpload}
-                        onClearSubtitle={handleClearSubtitle}
-                    />
-                </div>
-
-                {/* Right Column: Episode List (TV Only) */}
-                {type === 'tv' && (
-                    <div className="lg:col-span-1 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col h-[500px] lg:h-auto max-h-[600px]">
-                        {/* Season Selector Header */}
-                        <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-black/20 z-10">
-                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Select Season</h3>
-                        <div className="relative">
-                            <select 
-                                value={season}
-                                onChange={(e) => {
-                                setSeason(Number(e.target.value));
-                                setEpisode(1);
-                                }}
-                                className="w-full appearance-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 font-bold focus:ring-2 focus:ring-primary outline-none cursor-pointer"
-                            >
-                                {data.seasons?.filter(s => s.season_number > 0).map(s => (
-                                <option key={s.id} value={s.season_number}>Season {s.season_number}</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={18} />
-                        </div>
-                        </div>
-
-                        {/* Episode List */}
-                        <div className="overflow-y-auto flex-1 p-2 space-y-2 custom-scrollbar">
-                        {loadingEpisodes ? (
-                            <div className="flex flex-col items-center justify-center h-40 space-y-2">
-                                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                <p className="text-xs text-gray-500">Loading episodes...</p>
-                            </div>
-                        ) : (
-                            currentEpisodes.map((ep) => (
-                                <button
-                                key={ep.id}
-                                onClick={() => setEpisode(ep.episode_number)}
-                                className={`w-full flex items-start gap-3 p-2 rounded-lg transition-all duration-200 text-left group ${
-                                    episode === ep.episode_number 
-                                    ? 'bg-primary/10 border border-primary/30' 
-                                    : 'hover:bg-gray-200 dark:hover:bg-gray-800 border border-transparent'
-                                }`}
-                                >
-                                    {/* Thumbnail */}
-                                    <div className="relative w-28 aspect-video bg-gray-300 dark:bg-gray-800 rounded overflow-hidden flex-shrink-0">
-                                    {ep.still_path ? (
-                                        <img src={getImageUrl(ep.still_path)} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-gray-500">
-                                            <PlayCircle size={24} />
-                                        </div>
-                                    )}
-                                    {/* Rating Badge */}
-                                    <div className="absolute top-1 right-1 bg-black/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                        <Star size={8} className="text-yellow-400 fill-yellow-400" /> {ep.vote_average.toFixed(1)}
-                                    </div>
-                                    </div>
-                                    
-                                    {/* Info */}
-                                    <div className="flex-1 min-w-0 py-1">
-                                    <p className={`text-xs font-bold mb-0.5 truncate ${episode === ep.episode_number ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
-                                        {ep.episode_number}. {ep.name}
-                                    </p>
-                                    <p className="text-[10px] text-gray-500 line-clamp-2 leading-relaxed">
-                                        {ep.overview || "No description available."}
-                                    </p>
-                                    </div>
-                                </button>
-                            ))
-                        )}
-                        </div>
+            
+            {isYouTubeContent && youtubeVideoId ? (
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Server size={18} className="text-primary" />
+                        <span className="font-bold text-white">Active Source: {isSinhalaContent ? 'Lanka Cinema Server' : 'YouTube Premium'}</span>
                     </div>
-                )}
-            </div>
+                    <div className="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800 ring-1 ring-white/10">
+                        <iframe
+                            src={`https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&modestbranding=1&rel=0`}
+                            title="YouTube video player"
+                            className="w-full h-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-4">
+                        <VideoPlayer 
+                            tmdbId={parseInt(id!)} 
+                            type={type as 'movie' | 'tv'} 
+                            season={season}
+                            episode={episode}
+                            originalLanguage={data.original_language}
+                            subtitleCues={subtitleCues}
+                            subtitleFileName={subtitleFileName}
+                            onSubtitleUpload={handleSubtitleUpload}
+                            onClearSubtitle={handleClearSubtitle}
+                        />
+                    </div>
+
+                    {type === 'tv' && (
+                        <div className="lg:col-span-1 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col h-[500px] lg:h-auto max-h-[600px]">
+                            <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-black/20 z-10">
+                            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Select Season</h3>
+                            <div className="relative">
+                                <select 
+                                    value={season}
+                                    onChange={(e) => {
+                                    setSeason(Number(e.target.value));
+                                    setEpisode(1);
+                                    }}
+                                    className="w-full appearance-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 font-bold focus:ring-2 focus:ring-primary outline-none cursor-pointer"
+                                >
+                                    {data.seasons?.filter(s => s.season_number > 0).map(s => (
+                                    <option key={s.id} value={s.season_number}>Season {s.season_number}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={18} />
+                            </div>
+                            </div>
+
+                            <div className="overflow-y-auto flex-1 p-2 space-y-2 custom-scrollbar">
+                            {loadingEpisodes ? (
+                                <div className="flex flex-col items-center justify-center h-40 space-y-2">
+                                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                    <p className="text-xs text-gray-500">Loading episodes...</p>
+                                </div>
+                            ) : (
+                                currentEpisodes.map((ep) => (
+                                    <button
+                                    key={ep.id}
+                                    onClick={() => setEpisode(ep.episode_number)}
+                                    className={`w-full flex items-start gap-3 p-2 rounded-lg transition-all duration-200 text-left group ${
+                                        episode === ep.episode_number 
+                                        ? 'bg-primary/10 border border-primary/30' 
+                                        : 'hover:bg-gray-200 dark:hover:bg-gray-800 border border-transparent'
+                                    }`}
+                                    >
+                                        <div className="relative w-28 aspect-video bg-gray-300 dark:bg-gray-800 rounded overflow-hidden flex-shrink-0">
+                                        {ep.still_path ? (
+                                            <img src={getImageUrl(ep.still_path)} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-500">
+                                                <PlayCircle size={24} />
+                                            </div>
+                                        )}
+                                        <div className="absolute top-1 right-1 bg-black/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                            <Star size={8} className="text-yellow-400 fill-yellow-400" /> {ep.vote_average.toFixed(1)}
+                                        </div>
+                                        </div>
+                                        
+                                        <div className="flex-1 min-w-0 py-1">
+                                        <p className={`text-xs font-bold mb-0.5 truncate ${episode === ep.episode_number ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
+                                            {ep.episode_number}. {ep.name}
+                                        </p>
+                                        <p className="text-[10px] text-gray-500 line-clamp-2 leading-relaxed">
+                                            {ep.overview || "No description available."}
+                                        </p>
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
             </section>
         )}
 
-        {/* Similar Movies */}
-        {data.similar.results.length > 0 && (
+        {!isYouTubeContent && data.similar.results.length > 0 && (
           <section className="pt-8 border-t border-gray-200 dark:border-gray-800">
             <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white border-l-4 border-primary pl-3">More Like This</h2>
              <div className="flex space-x-4 overflow-x-auto pb-6 hide-scrollbar">
@@ -445,8 +578,7 @@ const Details: React.FC = () => {
         )}
       </div>
 
-      {/* Trailer Modal */}
-      {isTrailerOpen && trailer && (
+      {isTrailerOpen && trailer && !isYouTubeContent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in-up">
            <div className="absolute inset-0" onClick={() => setIsTrailerOpen(false)}></div>
            <div className="relative w-full max-w-5xl">
@@ -490,7 +622,6 @@ const Details: React.FC = () => {
         </div>
       )}
 
-      {/* Share Modal */}
       {isShareOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in-up">
           <div className="absolute inset-0" onClick={() => setIsShareOpen(false)}></div>
@@ -530,6 +661,14 @@ const Details: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* LANKA CINEMA DOWNLOAD MODAL */}
+      <DownloadModal 
+        isOpen={isDownloadModalOpen} 
+        onClose={() => setIsDownloadModalOpen(false)} 
+        formats={downloadFormats}
+        title={displayTitle}
+      />
     </div>
   );
 };
