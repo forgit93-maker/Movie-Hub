@@ -8,6 +8,7 @@ import { useStore } from '../context/StoreContext';
 import { Star, Clock, PlayCircle, ArrowLeft, Check, X, ExternalLink, Share2, Copy, Facebook, Heart, Play, ChevronDown, Captions, Trash2 } from 'lucide-react';
 import MovieCard from '../components/MovieCard';
 import VideoPlayer from '../components/VideoPlayer';
+import MovieDetailsLoader from '../components/MovieDetailsLoader';
 import { parseSubtitle, SubtitleCue } from '../utils/subtitleHelper';
 
 const Details: React.FC = () => {
@@ -46,7 +47,12 @@ const Details: React.FC = () => {
       setSubtitleFileName('');
       if (type && id) {
         try {
-          const result = await tmdbService.getDetails(type, parseInt(id));
+          // Delay slightly to prevent flickering if data loads too fast, allowing the loader to show nicely
+          const minLoadTime = new Promise(resolve => setTimeout(resolve, 600));
+          const request = tmdbService.getDetails(type, parseInt(id));
+          
+          const [result] = await Promise.all([request, minLoadTime]);
+          
           setData(result);
           
           // Reset defaults
@@ -125,7 +131,7 @@ const Details: React.FC = () => {
     setSubtitleFileName('');
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center dark:text-white text-gray-900">Loading details...</div>;
+  if (loading) return <MovieDetailsLoader />;
   if (!data) return <div className="h-screen flex items-center justify-center dark:text-white text-gray-900">Content not found.</div>;
 
   const trailer = data.videos.results.find(v => v.site === "YouTube" && v.type === "Trailer") 
@@ -192,7 +198,7 @@ const Details: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white pb-20 md:pb-0 relative transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white pb-20 md:pb-0 relative transition-colors duration-300 animate-fade-in-up">
       
       <Helmet>
         <title>{`${displayTitle} (${year}) - MOVIE HUB`}</title>
