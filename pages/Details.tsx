@@ -44,6 +44,25 @@ export default function Details() {
   
   const { user, addToWatchlist, removeFromWatchlist, isWatchlisted } = useStore();
 
+  // --- ADSTERRA POPUNDER INTEGRATION ---
+  useEffect(() => {
+    // Create the script element
+    const script = document.createElement('script');
+    script.src = "//pl28481918.effectivegatecpm.com/54/42/28/544228badfcc4c2bfc0469db956fed8d.js";
+    script.async = true;
+    script.type = 'text/javascript';
+
+    // Append to document body to trigger on click
+    document.body.appendChild(script);
+
+    // Cleanup: Remove script when user leaves this page
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
+
   // 1. Fetch Main Details
   useEffect(() => {
     const fetchData = async () => {
@@ -433,7 +452,9 @@ export default function Details() {
                     <div className="lg:col-span-2 space-y-4">
                         <VideoPlayer 
                             tmdbId={parseInt(id!)} 
-                            type={type as 'movie' | 'tv'} 
+                            type={type as 'movie' | 'tv'}
+                            title={displayTitle}
+                            year={year.toString()}
                             season={season}
                             episode={episode}
                             isAnime={isAnime}
@@ -626,4 +647,4 @@ export default function Details() {
       )}
     </div>
   );
-};
+}
