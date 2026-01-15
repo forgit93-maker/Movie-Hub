@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Server, AlertCircle, Cast, Zap, RefreshCw, Upload, Download, Settings, Maximize, Type, Minus, Plus, Globe, RotateCw, X, SkipForward } from 'lucide-react';
+import { Play, Pause, Server, AlertCircle, Cast, Zap, RefreshCw, Upload, Download, Settings, Maximize, Type, Minus, Plus, Globe, RotateCw, X, SkipForward, Search } from 'lucide-react';
 import axios from 'axios';
 import SubtitleOverlay from './SubtitleOverlay';
 import SettingsPanel from './SettingsPanel';
@@ -10,6 +10,8 @@ import { SubtitleStyle } from '../types';
 interface VideoPlayerProps {
   tmdbId: number;
   type: 'movie' | 'tv';
+  title?: string;
+  year?: string;
   season?: number;
   episode?: number;
   isAnime?: boolean;
@@ -23,6 +25,8 @@ interface VideoPlayerProps {
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
     tmdbId, 
     type, 
+    title = '',
+    year = '',
     season = 1, 
     episode = 1, 
     isAnime = false, 
@@ -38,7 +42,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fetchedTamilLinks, setFetchedTamilLinks] = useState<{name: string, url: string}[]>([]);
   
-  // --- NEW SEQUENCE STATES ---
+  // --- DAILYMOTION STATE ---
+  const [dailymotionId, setDailymotionId] = useState<string | null>(null);
+  const [isDmLoading, setIsDmLoading] = useState(false);
+  const [dmError, setDmError] = useState(false);
+
+  // --- SEQUENCE STATES ---
   const [showTip, setShowTip] = useState(true);
   const [showIntro, setShowIntro] = useState(true);
   
@@ -86,7 +95,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   ];
 
-  // 2. Standard Global Servers (Updated with South Asian Sources)
+  // 2. Standard Global Servers (Updated List)
   const standardServers = [
     {
       name: "Server 1: VidSrc.to",
@@ -103,17 +112,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       isAnime: false
     },
     {
-      name: "Server 3: SuperEmbed",
-      url: type === 'movie'
-        ? `https://multiembed.eu/?video_id=${tmdbId}&tmdb=1`
-        : `https://multiembed.eu/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
-      isAnime: false
+      name: "Server 3: Dailymotion", 
+      url: dailymotionId ? `https://www.dailymotion.com/embed/video/${dailymotionId}?autoplay=1` : '',
+      isAnime: false,
+      isDailymotion: true 
     },
     {
-      name: "Server 4: 2Embed",
+      name: "Server 4: SuperEmbed",
       url: type === 'movie'
-        ? `https://www.2embed.cc/embed/${tmdbId}`
-        : `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`,
+        ? `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`
+        : `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
       isAnime: false
     },
     {
@@ -142,6 +150,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       url: type === 'movie'
         ? `https://embed.warezcdn.com/v2/movie/${tmdbId}`
         : `https://embed.warezcdn.com/v2/series/${tmdbId}/${season}/${episode}`,
+      isAnime: false
+    },
+    {
+      name: "Server 9: Vidsrc.pro",
+      url: type === 'movie'
+        ? `https://vidsrc.pro/embed/movie/${tmdbId}`
+        : `https://vidsrc.pro/embed/tv/${tmdbId}/${season}/${episode}`,
       isAnime: false
     }
   ];
@@ -186,11 +201,62 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ? [...animeServers, ...standardServers] 
         : standardServers;
 
+  const currentServerObj = servers[currentServer];
+
+  // --- DYNAMIC SEARCH LOGIC ---
+  const fetchDailymotionLink = async () => {
+      setDailymotionId(null);
+      setDmError(false);
+      setIsDmLoading(true);
+
+      try {
+          // Construct Smart Query
+          let query = '';
+          if (type === 'movie') {
+              query = `${title} ${year} full movie`;
+          } else {
+              query = `${title} Season ${season} Episode ${episode}`;
+          }
+
+          // Fetch from Dailymotion API
+          // Note: Using public API channel, CORS is generally allowed for GET
+          const response = await axios.get(`https://api.dailymotion.com/videos`, {
+              params: {
+                  fields: 'id,title',
+                  search: query,
+                  sort: 'visited', // Get most viewed for relevance
+                  limit: 1
+              }
+          });
+
+          if (response.data && response.data.list && response.data.list.length > 0) {
+              setDailymotionId(response.data.list[0].id);
+          } else {
+              setDmError(true);
+          }
+
+      } catch (error) {
+          console.error("Dailymotion Search Error:", error);
+          setDmError(true);
+      } finally {
+          setIsDmLoading(false);
+      }
+  };
+
   const handleServerChange = (index: number) => {
     setIsLoading(true);
     setCurrentServer(index);
     setIframeKey(prev => prev + 1);
   };
+
+  // Watch for server change to Dailymotion
+  useEffect(() => {
+     // @ts-ignore
+     if (servers[currentServer].isDailymotion && !dailymotionId) {
+         fetchDailymotionLink();
+     }
+  }, [currentServer, servers, dailymotionId]);
+
 
   useEffect(() => {
     setIsLoading(true);
@@ -203,6 +269,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     // Reset Sequence on new ID
     setShowIntro(true);
     setShowTip(true);
+
+    // Reset DM State
+    setDailymotionId(null);
+    setDmError(false);
 
     if (isTamil && type === 'movie') {
         fetchTamilLinks();
@@ -273,7 +343,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // --- DOWNLOAD LOGIC ---
   const generateDownloadLink = async (quality: string) => {
     setIsGeneratingLink(true);
-    // REMOVED: playDownloadSound();
     
     let sourceUrl = "";
     if (type === 'movie') {
@@ -328,6 +397,46 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  // Helper to determine what to render inside the player area
+  const renderPlayerContent = () => {
+      // @ts-ignore
+      if (currentServerObj.isDailymotion) {
+          if (isDmLoading) {
+             return (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-20">
+                    <div className="w-12 h-12 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin"></div>
+                    <p className="text-gray-400 text-xs mt-3 font-medium animate-pulse">SEARCHING DAILYMOTION...</p>
+                 </div>
+             );
+          }
+          if (dmError || !dailymotionId) {
+             return (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-20 space-y-4">
+                    <div className="p-4 bg-gray-800 rounded-full text-gray-400">
+                        <Search size={32} />
+                    </div>
+                    <div className="text-center">
+                        <p className="text-white font-bold mb-1">Source not found on Dailymotion</p>
+                        <p className="text-xs text-gray-500">Please try Server 1 or 2 for better availability.</p>
+                    </div>
+                 </div>
+             );
+          }
+      }
+
+      return (
+        <iframe
+            key={iframeKey}
+            src={currentServerObj.url}
+            title="Video Player"
+            className="w-full h-full absolute inset-0 z-0 object-contain"
+            allowFullScreen={false} 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            onLoad={() => setIsLoading(false)}
+        />
+      );
   };
 
   return (
@@ -388,18 +497,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         id="player-wrapper"
         className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800 ring-1 ring-white/10 group flex flex-col justify-center"
       >
-        {/* STEP 2: INTRO VIDEO */}
+        {/* STEP 2: INTRO VIDEO (Auto-play enabled) */}
         {showIntro ? (
            <div className="absolute inset-0 z-30 bg-black flex flex-col items-center justify-center">
                <video 
                   src="https://www.mediafire.com/file/3mraz2r6th3qnqk/YTDown.com_Shorts_Turn-your-phone-to-landscape-mode-rotate_Media_M-W4zcg3KFw_001_1080p.mp4/file"
                   className="w-full h-full object-contain"
                   autoPlay
-                  muted // Required for autoplay in most browsers
+                  muted 
                   playsInline
                   onEnded={() => setShowIntro(false)}
                   onError={() => {
-                      console.warn("Intro video failed to load (likely not a direct link). Skipping...");
+                      // Silently fail over to main content if video fails to load (e.g. Mediafire non-direct link)
                       setShowIntro(false);
                   }}
                />
@@ -413,8 +522,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ) : (
            /* STEP 3: MAIN PLAYER CONTENT */
            <>
-                {/* Loading Overlay */}
-                {isLoading && (
+                {/* Loading Overlay (Standard) - Only show if NOT Dailymotion loading (DM has custom loader) */}
+                {/* @ts-ignore */}
+                {isLoading && !currentServerObj.isDailymotion && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10 pointer-events-none">
                     <div className="relative">
                     <div className="w-12 h-12 border-4 border-gray-700 border-t-primary rounded-full animate-spin"></div>
@@ -438,16 +548,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     </div>
                 )}
 
-                {/* The Iframe */}
-                <iframe
-                key={iframeKey}
-                src={servers[currentServer].url}
-                title="Video Player"
-                className="w-full h-full absolute inset-0 z-0 object-contain"
-                allowFullScreen={false} 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                onLoad={() => setIsLoading(false)}
-                />
+                {/* Render Content Logic (Iframe or Error/Loading for DM) */}
+                {renderPlayerContent()}
 
                 {/* Custom Fullscreen Button */}
                 <div className="absolute top-4 right-4 z-[10000] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -461,6 +563,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </div>
            </>
         )}
+      </div>
+
+      {/* --- NATIVE BANNER AD PLACEHOLDER --- */}
+      <div className="w-full bg-gray-900/50 border border-gray-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[100px] animate-fade-in-up">
+        <span className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 self-start bg-black/30 px-2 py-0.5 rounded">Advertisement</span>
+        {/* Place your Adsterra Native Banner Script here */}
+        <div id="adsterra-native-banner" className="w-full flex justify-center">
+            {/* Placeholder Visual - Replace this with your actual ad code */}
+            <div className="w-full h-[100px] bg-gray-800 rounded flex items-center justify-center border border-dashed border-gray-700 hover:border-gray-500 transition-colors cursor-default">
+                 <div className="text-center">
+                    <p className="text-gray-400 text-sm font-bold">Premium Content Sponsor</p>
+                    <p className="text-gray-600 text-xs">Ad Space Available</p>
+                 </div>
+            </div>
+        </div>
       </div>
 
       {/* --- SERVER SELECTION --- */}
