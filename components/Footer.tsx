@@ -1,16 +1,56 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Facebook, Instagram, Youtube, X as XIcon, Mail } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const location = useLocation();
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   const openModal = (type: string) => setActiveModal(type);
   const closeModal = () => setActiveModal(null);
 
   // 1. Hide Footer completely on Account (/profile) and Favorites (/watchlist) pages
   const hideFooter = ['/profile', '/watchlist', '/account', '/favorites'].includes(location.pathname);
+  
+  // --- ADSTERRA 728x90 FOOTER INJECTION ---
+  useEffect(() => {
+    if (bannerRef.current) {
+        bannerRef.current.innerHTML = ''; // Clear previous to prevent duplicates
+
+        // 1. Create Label
+        const label = document.createElement('div');
+        label.className = "text-[10px] text-gray-500 uppercase tracking-widest mb-2";
+        label.innerText = "Advertisement";
+        bannerRef.current.appendChild(label);
+
+        // 2. Create Ad Wrapper
+        const adWrapper = document.createElement('div');
+        bannerRef.current.appendChild(adWrapper);
+
+        // 3. Config Script
+        const confScript = document.createElement('script');
+        confScript.type = 'text/javascript';
+        confScript.innerHTML = `
+            atOptions = {
+                'key' : 'ea20c69b1277b26784f01cb5700280b3',
+                'format' : 'iframe',
+                'height' : 90,
+                'width' : 728,
+                'params' : {}
+            };
+        `;
+        adWrapper.appendChild(confScript);
+
+        // 4. Invoke Script
+        const invokeScript = document.createElement('script');
+        invokeScript.type = 'text/javascript';
+        invokeScript.src = "//awkwardmonopoly.com/ea20c69b1277b26784f01cb5700280b3/invoke.js";
+        adWrapper.appendChild(invokeScript);
+    }
+  }, [hideFooter]); // Re-run if footer visibility changes
+
   if (hideFooter) return null;
 
   // 2. Only show Intro text and Social Icons on the Home page ('/')
@@ -20,6 +60,11 @@ const Footer: React.FC = () => {
     <footer className="bg-gray-50 dark:bg-black text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-white/10 transition-colors duration-300 pb-28 pt-12">
       <div className="max-w-7xl mx-auto px-6 text-center">
         
+        {/* --- ADSTERRA BANNER CONTAINER --- */}
+        <div ref={bannerRef} className="flex flex-col items-center justify-center mb-10 overflow-hidden min-h-[100px]">
+           {/* Scripts injected here via useEffect */}
+        </div>
+
         {/* Brand & Socials Section */}
         <div className="mb-8">
             <Link to="/" className="text-primary font-bold text-3xl tracking-tighter inline-block mb-4">

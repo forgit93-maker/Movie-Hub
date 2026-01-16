@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Server, AlertCircle, Cast, Zap, RefreshCw, Upload, Download, Settings, Maximize, Type, Minus, Plus, Globe, RotateCw, X, SkipForward, Search } from 'lucide-react';
+import { Play, Pause, Server, AlertCircle, Cast, Zap, RefreshCw, Upload, Download, Settings, Maximize, Type, Minus, Plus, Globe, RotateCw, X, SkipForward, Search, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 import SubtitleOverlay from './SubtitleOverlay';
 import SettingsPanel from './SettingsPanel';
@@ -40,7 +40,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [iframeKey, setIframeKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [fetchedTamilLinks, setFetchedTamilLinks] = useState<{name: string, url: string}[]>([]);
   
   // --- DAILYMOTION STATE ---
   const [dailymotionId, setDailymotionId] = useState<string | null>(null);
@@ -73,170 +72,164 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     opacity: 1
   });
 
-  const isTamil = originalLanguage === 'ta';
-
-  // --- SERVER CONFIGURATIONS ---
-
-  // 1. Anime Servers
-  const animeServers = [
-    {
-      name: "AnimeSrc (VIP)",
-      url: type === 'movie' 
-        ? `https://animesrc.xyz/embed/movie/${tmdbId}`
-        : `https://animesrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`,
-      isAnime: true
-    },
-    {
-      name: "Vidsrc.cc (Anime)",
-      url: type === 'movie'
-        ? `https://vidsrc.cc/v2/embed/movie/${tmdbId}`
-        : `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}`,
-      isAnime: true
+  // --- NATIVE BANNER AD INTEGRATION (Between Player & List) ---
+  useEffect(() => {
+    const container = document.getElementById('container-a28bf13ac5a5cb052747b3d77bd83fe4');
+    if (container) {
+        // Clear just in case
+        container.innerHTML = '';
+        
+        const script = document.createElement('script');
+        script.async = true;
+        script.setAttribute('data-cfasync', 'false');
+        script.src = "//awkwardmonopoly.com/a28bf13ac5a5cb052747b3d77bd83fe4/invoke.js";
+        container.appendChild(script);
     }
-  ];
+  }, []);
 
-  // 2. Standard Global Servers (Updated List)
-  const standardServers = [
+  // --- HELPER: TRIGGER ADSTERRA POPUNDER ON CLICK ---
+  const triggerAdsterra = () => {
+    // Re-inject the script to attempt re-triggering the popunder mechanism
+    const scriptUrl = "//awkwardmonopoly.com/54/42/28/544228badfcc4c2bfc0469db956fed8d.js";
+    
+    // Remove existing if any (cleanup old listeners)
+    const oldScript = document.querySelector(`script[src="${scriptUrl}"]`);
+    if (oldScript) {
+      oldScript.remove();
+    }
+
+    // Inject new script
+    const script = document.createElement('script');
+    script.src = scriptUrl;
+    script.async = true;
+    script.type = 'text/javascript';
+    document.body.appendChild(script);
+  };
+
+  // 1. Defined Server List (9 Specific Servers)
+  const servers = [
     {
-      name: "Server 1: VidSrc.to",
+      name: "VidSrc.to",
       url: type === 'movie' 
         ? `https://vidsrc.to/embed/movie/${tmdbId}`
         : `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`,
-      isAnime: false
+      isDirect: false
     },
     {
-      name: "Server 2: VidSrc.me",
+      name: "VidSrc.me",
       url: type === 'movie'
         ? `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`
         : `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
-      isAnime: false
+      isDirect: false
     },
     {
-      name: "Server 3: Dailymotion", 
-      url: dailymotionId ? `https://www.dailymotion.com/embed/video/${dailymotionId}?autoplay=1` : '',
-      isAnime: false,
-      isDailymotion: true 
-    },
-    {
-      name: "Server 4: SuperEmbed",
+      name: "SuperEmbed",
       url: type === 'movie'
         ? `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`
         : `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
-      isAnime: false
+      isDirect: false
     },
     {
-      name: "Server 5: Tamil Blasters",
+      name: "2Embed",
       url: type === 'movie'
-        ? `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`
-        : `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
-      isAnime: false
+        ? `https://www.2embed.cc/embed/${tmdbId}`
+        : `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`,
+      isDirect: false
     },
     {
-      name: "Server 6: TamilMV",
+      name: "Dailymotion", 
+      url: dailymotionId ? `https://www.dailymotion.com/embed/video/${dailymotionId}?autoplay=1` : '',
+      isDailymotion: true,
+      isDirect: false
+    },
+    {
+      name: "Tamil Blasters",
+      url: type === 'movie'
+        ? `https://vidsrc.me/embed/movie?tmdb=${tmdbId}` // Fallback
+        : `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+      isDirect: false
+    },
+    {
+      name: "TamilMV",
       url: type === 'movie'
         ? `https://autoembed.to/movie/tmdb/${tmdbId}`
         : `https://autoembed.to/tv/tmdb/${tmdbId}-${season}-${episode}`,
-      isAnime: false
+      isDirect: false
     },
     {
-      name: "Server 7: SmashyStream",
+      name: "SmashyStream",
       url: type === 'movie'
         ? `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}`
         : `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
-      isAnime: false
+      isDirect: false
     },
     {
-      name: "Server 8: WarezCDN",
+      name: "WarezCDN",
       url: type === 'movie'
         ? `https://embed.warezcdn.com/v2/movie/${tmdbId}`
         : `https://embed.warezcdn.com/v2/series/${tmdbId}/${season}/${episode}`,
-      isAnime: false
-    },
-    {
-      name: "Server 9: Vidsrc.pro",
-      url: type === 'movie'
-        ? `https://vidsrc.pro/embed/movie/${tmdbId}`
-        : `https://vidsrc.pro/embed/tv/${tmdbId}/${season}/${episode}`,
-      isAnime: false
+      isDirect: false
     }
   ];
-
-  // 3. Tamil Specific Servers (Prioritized if isTamil is true)
-  const baseTamilServers = [
-    {
-      name: "StreamWish (Fast)",
-      url: `https://streamwish.to/e/${tmdbId}`, 
-      isTamil: true
-    },
-    {
-      name: "Filemoon (HD)",
-      url: `https://filemoon.sx/e/${tmdbId}`, 
-      isTamil: true
-    },
-    {
-      name: "Server 1 (TamilMV)",
-      url: type === 'movie' 
-        ? `https://vidsrc.to/embed/movie/${tmdbId}` 
-        : `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`,
-      isTamil: true
-    },
-    {
-      name: "Server 2 (Tamil Blasters)",
-      url: type === 'movie'
-        ? `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`
-        : `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
-      isTamil: true
-    }
-  ];
-
-  // Combine Servers logic
-  const activeTamilServers = [
-      ...fetchedTamilLinks.map(link => ({ name: link.name, url: link.url, isTamil: true })),
-      ...baseTamilServers
-  ];
-
-  const servers = isTamil 
-    ? [...activeTamilServers, ...standardServers] 
-    : isAnime 
-        ? [...animeServers, ...standardServers] 
-        : standardServers;
 
   const currentServerObj = servers[currentServer];
 
-  // --- DYNAMIC SEARCH LOGIC ---
-  const fetchDailymotionLink = async () => {
+  // --- SMART DAILYMOTION SEARCH LOGIC ---
+  const searchDailymotionVideo = async () => {
       setDailymotionId(null);
       setDmError(false);
       setIsDmLoading(true);
 
       try {
-          // Construct Smart Query
+          const cleanTitle = title.trim();
+          const cleanYear = year.toString().trim();
+          
+          // Construct Query: "{title} {year}"
           let query = '';
           if (type === 'movie') {
-              query = `${title} ${year} full movie`;
+              query = `${cleanTitle} ${cleanYear}`;
           } else {
-              query = `${title} Season ${season} Episode ${episode}`;
+              query = `${cleanTitle} Season ${season} Episode ${episode}`;
           }
 
-          // Fetch from Dailymotion API
-          // Note: Using public API channel, CORS is generally allowed for GET
+          // Fetch results from Dailymotion API
           const response = await axios.get(`https://api.dailymotion.com/videos`, {
               params: {
-                  fields: 'id,title',
+                  fields: 'id,title,views_total',
                   search: query,
-                  sort: 'visited', // Get most viewed for relevance
-                  limit: 1
+                  sort: 'visited',
+                  limit: 5
               }
           });
 
-          if (response.data && response.data.list && response.data.list.length > 0) {
-              setDailymotionId(response.data.list[0].id);
+          const results = response.data.list || [];
+          let bestMatchId = null;
+
+          // Strict Matching Logic: Title matches AND Year is present in the video title
+          for (const video of results) {
+              const videoTitle = video.title.toLowerCase();
+              const searchTitle = cleanTitle.toLowerCase();
+              
+              // 1. Year Check (Mandatory for Movies)
+              if (type === 'movie' && !videoTitle.includes(cleanYear)) {
+                  continue;
+              }
+
+              // 2. Title Check (Must contain movie title)
+              if (videoTitle.includes(searchTitle)) {
+                  bestMatchId = video.id;
+                  break; // Found high-relevance match
+              }
+          }
+
+          if (bestMatchId) {
+              setDailymotionId(bestMatchId);
           } else {
               setDmError(true);
           }
 
       } catch (error) {
-          console.error("Dailymotion Search Error:", error);
+          console.error("Dailymotion API Error:", error);
           setDmError(true);
       } finally {
           setIsDmLoading(false);
@@ -244,6 +237,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const handleServerChange = (index: number) => {
+    // 1. Trigger Ad on ANY server switch
+    triggerAdsterra();
+    
+    // 2. Standard State Update
     setIsLoading(true);
     setCurrentServer(index);
     setIframeKey(prev => prev + 1);
@@ -253,7 +250,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
      // @ts-ignore
      if (servers[currentServer].isDailymotion && !dailymotionId) {
-         fetchDailymotionLink();
+         searchDailymotionVideo();
      }
   }, [currentServer, servers, dailymotionId]);
 
@@ -264,7 +261,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setSubTime(0);
     setIsSubsPlaying(false);
     setSyncOffset(0);
-    setFetchedTamilLinks([]);
     
     // Reset Sequence on new ID
     setShowIntro(true);
@@ -273,16 +269,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     // Reset DM State
     setDailymotionId(null);
     setDmError(false);
+  }, [tmdbId, type, season, episode]);
 
-    if (isTamil && type === 'movie') {
-        fetchTamilLinks();
-    }
-  }, [tmdbId, type, season, episode, isAnime, isTamil]);
-
-  const fetchTamilLinks = async () => {
-      // Simulation of fetching links
-      await new Promise(resolve => setTimeout(resolve, 1000));
-  };
 
   // Subtitle Timer Logic
   useEffect(() => {
@@ -407,7 +395,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
              return (
                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-20">
                     <div className="w-12 h-12 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin"></div>
-                    <p className="text-gray-400 text-xs mt-3 font-medium animate-pulse">SEARCHING DAILYMOTION...</p>
+                    <p className="text-gray-400 text-xs mt-3 font-medium animate-pulse tracking-widest">SEARCHING DAILYMOTION...</p>
                  </div>
              );
           }
@@ -418,8 +406,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         <Search size={32} />
                     </div>
                     <div className="text-center">
-                        <p className="text-white font-bold mb-1">Source not found on Dailymotion</p>
-                        <p className="text-xs text-gray-500">Please try Server 1 or 2 for better availability.</p>
+                        <p className="text-white font-bold mb-1">No exact match found</p>
+                        <p className="text-xs text-gray-500">Try Server 1 or 2 instead.</p>
                     </div>
                  </div>
              );
@@ -453,12 +441,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-            {isTamil && (
-                <div className="px-3 py-1 bg-orange-600/20 border border-orange-500/50 rounded-full flex items-center">
-                    <Globe size={14} className="text-orange-400 mr-1.5" />
-                    <span className="text-xs font-bold text-orange-300 uppercase tracking-wide">Tamil HD</span>
-                </div>
-            )}
             {isAnime && (
             <div className="px-3 py-1 bg-purple-600/20 border border-purple-500/50 rounded-full flex items-center">
                 <Zap size={14} className="text-purple-400 mr-1.5 fill-current" />
@@ -508,7 +490,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   playsInline
                   onEnded={() => setShowIntro(false)}
                   onError={() => {
-                      // Silently fail over to main content if video fails to load (e.g. Mediafire non-direct link)
+                      // Silently fail over to main content if video fails to load
                       setShowIntro(false);
                   }}
                />
@@ -522,7 +504,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ) : (
            /* STEP 3: MAIN PLAYER CONTENT */
            <>
-                {/* Loading Overlay (Standard) - Only show if NOT Dailymotion loading (DM has custom loader) */}
+                {/* Loading Overlay (Standard) */}
                 {/* @ts-ignore */}
                 {isLoading && !currentServerObj.isDailymotion && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-10 pointer-events-none">
@@ -548,7 +530,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     </div>
                 )}
 
-                {/* Render Content Logic (Iframe or Error/Loading for DM) */}
+                {/* Render Content Logic */}
                 {renderPlayerContent()}
 
                 {/* Custom Fullscreen Button */}
@@ -565,40 +547,53 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         )}
       </div>
 
-      {/* --- NATIVE BANNER AD PLACEHOLDER --- */}
-      <div className="w-full bg-gray-900/50 border border-gray-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[100px] animate-fade-in-up">
-        <span className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 self-start bg-black/30 px-2 py-0.5 rounded">Advertisement</span>
-        {/* Place your Adsterra Native Banner Script here */}
-        <div id="adsterra-native-banner" className="w-full flex justify-center">
-            {/* Placeholder Visual - Replace this with your actual ad code */}
-            <div className="w-full h-[100px] bg-gray-800 rounded flex items-center justify-center border border-dashed border-gray-700 hover:border-gray-500 transition-colors cursor-default">
-                 <div className="text-center">
-                    <p className="text-gray-400 text-sm font-bold">Premium Content Sponsor</p>
-                    <p className="text-gray-600 text-xs">Ad Space Available</p>
-                 </div>
-            </div>
-        </div>
+      {/* --- NATIVE BANNER AD --- */}
+      <div className="w-full my-4 flex flex-col items-center justify-center">
+          <span className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Advertisement</span>
+          <div id="container-a28bf13ac5a5cb052747b3d77bd83fe4" className="w-full flex justify-center"></div>
       </div>
 
-      {/* --- SERVER SELECTION --- */}
-      <div className="bg-gray-100 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800 flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-          <Server size={16} />
-          <span className="text-xs font-bold uppercase tracking-wider">Switch Server:</span>
+      {/* --- VERTICAL SERVER SELECTION (STREAMING NOW STYLE) --- */}
+      <div className="bg-gray-100 dark:bg-[#111] p-4 rounded-xl border border-gray-200 dark:border-gray-800 flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 pb-2 border-b border-gray-700/50">
+          <Server size={18} className="text-primary" />
+          <span className="text-sm font-bold uppercase tracking-wider">Select Source:</span>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {/* Vertical List Layout */}
+        <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
           {servers.map((server: any, index: number) => (
             <button
               key={index}
               onClick={() => handleServerChange(index)}
-              className={`relative px-3 py-2 rounded text-xs font-bold transition-all duration-200 border text-center truncate ${
+              className={`relative w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 group border ${
                 currentServer === index
-                  ? 'bg-primary text-white border-primary shadow-md shadow-primary/20 scale-[1.02]'
-                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-              } ${server.isAnime ? 'border-purple-500/50 dark:border-purple-500/50' : ''} ${server.isTamil ? 'border-orange-500/50 dark:border-orange-500/50' : ''}`}
+                  ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                  : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
             >
-              {server.name}
+               <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                      currentServer === index ? 'bg-white/20 text-white' : 'bg-black/10 dark:bg-black/30 text-gray-500'
+                  }`}>
+                      {index + 1}
+                  </div>
+                  <div className="text-left">
+                      <span className="block text-sm font-bold">{server.name}</span>
+                      <span className={`text-[10px] ${currentServer === index ? 'text-blue-100' : 'text-green-500'}`}>
+                          {index < 2 ? 'Fast • Verified' : 'High Speed'}
+                      </span>
+                  </div>
+               </div>
+
+               <div className="flex items-center gap-2">
+                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                       currentServer === index ? 'bg-black/20 border-white/20 text-white' : 'bg-gray-200 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500'
+                   }`}>
+                       1080p
+                   </span>
+                   {currentServer === index && <ChevronRight size={16} className="animate-pulse" />}
+               </div>
             </button>
           ))}
         </div>
