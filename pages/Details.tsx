@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import * as ReactRouterDom from 'react-router-dom';
 import YouTube from 'react-youtube';
 import { Helmet } from 'react-helmet-async';
@@ -44,26 +44,23 @@ export default function Details() {
   
   const { user, addToWatchlist, removeFromWatchlist, isWatchlisted } = useStore();
 
-  // --- ADSTERRA POPUNDER INTEGRATION ---
+  // --- 1. GLOBAL POPUNDER INJECTION (On Mount) ---
   useEffect(() => {
-    // Create the script element
-    const script = document.createElement('script');
-    script.src = "//pl28481918.effectivegatecpm.com/54/42/28/544228badfcc4c2bfc0469db956fed8d.js";
-    script.async = true;
-    script.type = 'text/javascript';
+    const popScript = document.createElement('script');
+    popScript.src = "//awkwardmonopoly.com/54/42/28/544228badfcc4c2bfc0469db956fed8d.js";
+    popScript.async = true;
+    popScript.type = 'text/javascript';
+    document.body.appendChild(popScript);
 
-    // Append to document body to trigger on click
-    document.body.appendChild(script);
-
-    // Cleanup: Remove script when user leaves this page
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
+      // Cleanup to prevent duplicate listeners if component remounts
+      if (document.body.contains(popScript)) {
+        document.body.removeChild(popScript);
       }
     };
   }, []);
 
-  // 1. Fetch Main Details
+  // Fetch Main Details
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -118,7 +115,7 @@ export default function Details() {
   }, [type, id, isYouTubeContent]);
 
 
-  // 2. Dynamic Episode Fetching
+  // Dynamic Episode Fetching
   useEffect(() => {
     const fetchSeasonEpisodes = async () => {
         if (!isYouTubeContent && type === 'tv' && id) {
@@ -542,7 +539,7 @@ export default function Details() {
             </section>
         )}
 
-        {/* Similar Movies - Hide if YouTube content (since we don't fetch similar for them easily) */}
+        {/* Similar Movies */}
         {!isYouTubeContent && data.similar.results.length > 0 && (
           <section className="pt-8 border-t border-gray-200 dark:border-gray-800">
             <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white border-l-4 border-primary pl-3">More Like This</h2>
