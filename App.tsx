@@ -20,21 +20,17 @@ import Blog from './pages/Blog';
 import ActorDetails from './pages/ActorDetails';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// Layout component to handle location-based styles inside the Router context
 const AppLayout: React.FC = () => {
   const location = useLocation();
   
-  // Define pages where Footer is hidden (Account & Favorites)
-  // We check for /profile (Account) and /watchlist (Favorites) as these are the actual routes
-  const isFooterHidden = ['/profile', '/watchlist', '/account', '/favorites'].includes(location.pathname);
+  const isAuthPage = location.pathname === '/login';
+  const isFooterHidden = ['/profile', '/watchlist', '/account', '/favorites', '/login'].includes(location.pathname);
 
   return (
     <div className="min-h-screen font-sans transition-colors duration-300 bg-white text-gray-900 dark:bg-black dark:text-white flex flex-col">
-      <Navbar />
+      {!isAuthPage && <Navbar />}
       
-      {/* Add extra padding-bottom if footer is hidden to prevent BottomNav overlap on mobile.
-          If footer is visible, it has its own padding to accommodate the bottom nav. */}
-      <main className={`flex-grow ${isFooterHidden ? 'pb-24' : ''}`}>
+      <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/movies" element={<Movies />} /> 
@@ -45,7 +41,6 @@ const AppLayout: React.FC = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/blog" element={<Blog />} />
           
-          {/* Protected Routes */}
           <Route 
             path="/profile" 
             element={
@@ -65,8 +60,7 @@ const AppLayout: React.FC = () => {
         </Routes>
       </main>
       
-      <BottomNav />
-      {/* Conditionally render Footer */}
+      {!isAuthPage && <BottomNav />}
       {!isFooterHidden && <Footer />}
     </div>
   );
@@ -75,9 +69,7 @@ const AppLayout: React.FC = () => {
 function App() {
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize Theme and Loading State
   useEffect(() => {
-    // 1. Theme Setup
     const savedTheme = localStorage.getItem('theme');
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
@@ -87,7 +79,6 @@ function App() {
       document.documentElement.classList.remove('dark');
     }
 
-    // 2. Loading Screen Timer (2.5 seconds)
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 2500);
@@ -95,7 +86,6 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Show Loading Screen before mounting the main app
   if (isLoading) {
     return <LoadingScreen />;
   }
