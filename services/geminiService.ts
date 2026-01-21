@@ -1,56 +1,46 @@
-import { GoogleGenerativeAI, ChatSession } from "@google/generative-ai";
 
-let chatSession: ChatSession | null = null;
-let genAI: GoogleGenerativeAI | null = null;
+// Correctly import GoogleGenAI from @google/genai
+import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
+
+let chat: Chat | null = null;
+
+// Always initialize GoogleGenAI using a named parameter with process.env.API_KEY
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const initGemini = () => {
-  const apiKey = typeof process !== "undefined" ? process.env?.API_KEY : undefined;
-  
-  if (!apiKey) {
-    console.warn("Gemini API Key is missing.");
-    return;
-  }
-  
   try {
-    genAI = new GoogleGenerativeAI(apiKey);
-    
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: `You are a helpful and knowledgeable movie and TV series assistant for a website called "MOVIE HUB". 
+    // Use ai.chats.create with recommended model and config structure
+    chat = ai.chats.create({ 
+      model: "gemini-3-flash-preview",
+      config: {
+        systemInstruction: `You are a helpful and knowledgeable movie and TV series assistant for a website called "MOVIE HUB". 
         Your goal is to help users find movies, provide facts, explain plots (without spoilers unless asked), and recommend content based on their mood or preferences.
         Keep answers concise and engaging. If you mention a movie, try to include the release year.
-        You are witty and love cinema.` }]
+        You are witty and love cinema.`
       }
     });
-    
-    chatSession = model.startChat({
-      history: [],
-      generationConfig: {
-        maxOutputTokens: 1000,
-      },
-    });
-  } catch (error) {
-    console.error("Failed to initialize Gemini:", error);
+  } catch (error: any) {
+    // Extract message to avoid circular structure errors
+    console.error("Failed to initialize Gemini:", error?.message || error);
   }
 };
 
 export const sendMessageToGemini = async (message: string): Promise<string> => {
-  if (!chatSession) {
+  if (!chat) {
     initGemini();
   }
   
-  if (!chatSession) {
+  if (!chat) {
       return "I'm sorry, I cannot connect to the AI service right now. Please check your API configuration.";
   }
 
   try {
-    const result = await chatSession.sendMessage(message);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error("Gemini Error:", error);
+    // Use chat.sendMessage with message parameter and handle response.text property
+    const response: GenerateContentResponse = await chat.sendMessage({ message });
+    return response.text || "I'm sorry, I couldn't generate a response.";
+  } catch (error: any) {
+    // Extract message to avoid circular structure errors
+    console.error("Gemini Error:", error?.message || error);
     return "I had some trouble thinking about that. Try again?";
   }
 };
