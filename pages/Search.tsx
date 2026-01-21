@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -16,28 +17,24 @@ const Search: React.FC = () => {
       if (query) {
         setLoading(true);
         try {
-            // 1. Fetch TMDB Results
             const tmdbPromise = tmdbService.searchMulti(query);
             
-            // 2. Fetch YouTube "Lanka Cinema" Results via RapidAPI
-            // Using the user provided key with a standard YouTube Search API host
             const rapidApiKey = 'bc98d5efd1msh9568cc76df1a18fp1a7e90jsnf632bef6dec7';
             const youtubeHost = 'youtube-search-and-download.p.rapidapi.com'; 
             
             const youtubePromise = axios.get(`https://${youtubeHost}/search`, {
-                params: { query: `${query} Lanka Cinema Sinhala Movie`, type: 'v' }, // Targeting video results
+                params: { query: `${query} Lanka Cinema Sinhala Movie`, type: 'v' },
                 headers: {
                     'x-rapidapi-key': rapidApiKey,
                     'x-rapidapi-host': youtubeHost
                 }
             }).catch(err => {
-                console.error("YouTube API Error:", err);
+                console.error("YouTube Search Error:", err?.message || "Internal YouTube API Failure");
                 return { data: { contents: [] } };
             });
 
             const [tmdbData, youtubeResponse] = await Promise.all([tmdbPromise, youtubePromise]);
 
-            // 3. Normalize YouTube Results to Movie type
             const youtubeMovies: Movie[] = [];
             if (youtubeResponse.data && youtubeResponse.data.contents) {
                 youtubeResponse.data.contents.forEach((item: any) => {
@@ -46,12 +43,12 @@ const Search: React.FC = () => {
                         youtubeMovies.push({
                             id: `yt_${video.videoId}`,
                             title: video.title,
-                            original_language: 'si', // Assume Sinhala
+                            original_language: 'si',
                             overview: 'Watch this exclusive Sinhala movie from Lanka Cinema.',
-                            poster_path: video.thumbnails?.[0]?.url || null, // High quality thumb usually first or largest
+                            poster_path: video.thumbnails?.[0]?.url || null,
                             backdrop_path: video.thumbnails?.[0]?.url || null,
                             release_date: video.publishedTimeText,
-                            vote_average: 5.0, // Default for YT
+                            vote_average: 5.0,
                             vote_count: parseInt(video.viewCountText?.replace(/[^0-9]/g, '') || '0'),
                             media_type: 'movie',
                             genre_ids: []
@@ -60,13 +57,11 @@ const Search: React.FC = () => {
                 });
             }
 
-            // 4. Merge and Shuffle Results for "Unified" feel
-            // We interleave them or just concat. Let's concat for now, prioritizing TMDB then YT.
             const unifiedResults = [...tmdbData, ...youtubeMovies];
             setResults(unifiedResults);
 
-        } catch (error) {
-            console.error("Search Failed", error);
+        } catch (error: any) {
+            console.error("Unified Search Error:", error?.message || error);
             setResults([]);
         } finally {
             setLoading(false);
@@ -96,7 +91,6 @@ const Search: React.FC = () => {
           </div>
         )}
 
-        {/* Responsive Grid Layout: Identical to Home Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4 lg:gap-6">
           {results.map((movie) => (
             <div key={movie.id} className="w-full">
@@ -104,7 +98,6 @@ const Search: React.FC = () => {
             </div>
           ))}
           
-          {/* Skeleton Loading State */}
           {loading && Array.from({ length: 12 }).map((_, i) => (
              <div key={i} className="aspect-[2/3] bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse relative overflow-hidden">
                 <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>

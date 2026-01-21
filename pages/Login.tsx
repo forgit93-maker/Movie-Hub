@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
-import { AlertCircle, ShieldAlert, Copy, ExternalLink, Eye, EyeOff, Check } from 'lucide-react';
+import { AlertCircle, ShieldAlert, Copy, ExternalLink, Eye, EyeOff, ChevronLeft } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,6 +16,31 @@ const Login: React.FC = () => {
   const { login, signup, googleSignIn } = useStore();
   const navigate = useNavigate();
 
+  const handleAuthError = (err: any) => {
+    // Extract specific properties to avoid "Converting circular structure to JSON"
+    const errorMessage = err?.message || "Unknown auth error";
+    console.error("Auth Error Message:", errorMessage);
+    
+    if (err.code === 'auth/unauthorized-domain') {
+      setAuthDomainError(window.location.hostname);
+      return;
+    }
+    
+    if (errorMessage.includes("Only @gmail.com") || errorMessage.includes("addresses are allowed")) {
+      setError(errorMessage);
+    } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+      setError('Invalid email or password.');
+    } else if (err.code === 'auth/email-already-in-use') {
+      setError('Email is already in use.');
+    } else if (err.code === 'auth/weak-password') {
+      setError('Password should be at least 6 characters.');
+    } else if (err.code === 'auth/popup-closed-by-user') {
+      setError('Sign in cancelled.');
+    } else {
+      setError('Failed to authenticate. ' + (errorMessage || 'Please try again.'));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -22,8 +48,10 @@ const Login: React.FC = () => {
     setIsLoading(true);
     try {
       if (isLogin) {
+        // SAFE ZONE: No ads on login trigger
         await login(email, password);
       } else {
+        // SAFE ZONE: No ads on signup trigger
         await signup(email, password);
       }
       navigate('/');
@@ -34,35 +62,16 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (e: React.MouseEvent) => {
+    e.preventDefault();
     setError('');
     setAuthDomainError(null);
     try {
+      // SAFE ZONE: No ads on Google sign in
       await googleSignIn();
       navigate('/');
     } catch (err: any) {
       handleAuthError(err);
-    }
-  };
-
-  const handleAuthError = (err: any) => {
-    console.error("Auth Error:", err);
-    if (err.code === 'auth/unauthorized-domain') {
-      setAuthDomainError(window.location.hostname);
-      return;
-    }
-    if (err.message && (err.message.includes("Only @gmail.com") || err.message.includes("addresses are allowed"))) {
-      setError(err.message);
-    } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-      setError('Invalid email or password.');
-    } else if (err.code === 'auth/email-already-in-use') {
-      setError('Email is already in use.');
-    } else if (err.code === 'auth/weak-password') {
-      setError('Password should be at least 6 characters.');
-    } else if (err.code === 'auth/popup-closed-by-user') {
-      setError('Sign in cancelled.');
-    } else {
-      setError('Failed to authenticate. ' + (err.message || 'Please try again.'));
     }
   };
 
@@ -91,7 +100,7 @@ const Login: React.FC = () => {
           </div>
           <div className="space-y-4">
             <a 
-              href="https://console.firebase.google.com/project/movie-f513f/authentication/settings" 
+              href="https://console.firebase.google.com/" 
               target="_blank" 
               rel="noopener noreferrer"
               className="block w-full bg-primary hover:bg-red-700 text-white font-bold py-3 px-4 rounded transition flex items-center justify-center"
@@ -107,7 +116,6 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center py-20 px-4">
-      {/* Cinematic Background with Blur */}
       <div className="absolute inset-0 z-0">
         <img 
           src="https://assets.nflxext.com/ffe/siteui/vlv3/f841d4c7-10e1-40af-bcae-07a3f8dc141a/f6d7434e-d6de-4185-a6d4-c77a2d08737b/US-en-20220502-popsignuptwoweeks-perspective_alpha_website_medium.jpg" 
@@ -118,14 +126,15 @@ const Login: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40"></div>
       </div>
 
-      {/* Premium Glassmorphism Card */}
       <div className="relative z-10 w-full max-w-[450px] bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8 md:p-12 animate-fade-in-up overflow-hidden">
         
-        {/* Soft Glow Effect behind card */}
-        <div className="absolute -top-20 -left-20 w-40 h-40 bg-primary/30 rounded-full blur-[100px] pointer-events-none"></div>
-        <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-blue-600/20 rounded-full blur-[100px] pointer-events-none"></div>
+        <button 
+          onClick={() => navigate('/')} 
+          className="absolute top-4 left-4 p-2 text-gray-400 hover:text-white transition-colors flex items-center gap-1 text-xs uppercase font-bold"
+        >
+          <ChevronLeft size={16} /> Home
+        </button>
 
-        {/* Header */}
         <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">
                 {isLogin ? 'Welcome Back' : 'Join Movie Hub'}
@@ -143,52 +152,43 @@ const Login: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Floating Label Input: Email */}
           <div className="relative group">
             <input
               type="email"
               id="email"
-              className={`block px-4 pb-2.5 pt-5 w-full text-sm text-white bg-white/5 border rounded-lg appearance-none focus:outline-none focus:ring-0 peer transition-all duration-300
-                ${error ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}
-                placeholder-transparent
-              `}
+              className="block px-4 pb-2.5 pt-5 w-full text-sm text-white bg-white/5 border border-white/10 rounded-lg appearance-none focus:outline-none focus:ring-0 focus:border-primary peer transition-all duration-300 placeholder-transparent"
               placeholder=" "
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={(e) => e.stopPropagation()}
               required
             />
             <label 
               htmlFor="email" 
-              className={`absolute text-sm duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] left-4 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4 
-              ${error ? 'text-red-400' : 'text-gray-400 peer-focus:text-primary'}`}
+              className="absolute text-sm text-gray-400 duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] left-4 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4 peer-focus:text-primary"
             >
               Email Address
             </label>
           </div>
 
-          {/* Floating Label Input: Password */}
           <div className="relative group">
             <input
               type={showPassword ? "text" : "password"}
               id="password"
-              className={`block px-4 pb-2.5 pt-5 w-full text-sm text-white bg-white/5 border rounded-lg appearance-none focus:outline-none focus:ring-0 peer transition-all duration-300
-                ${error ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}
-                placeholder-transparent pr-10
-              `}
+              className="block px-4 pb-2.5 pt-5 w-full text-sm text-white bg-white/5 border border-white/10 rounded-lg appearance-none focus:outline-none focus:ring-0 focus:border-primary peer transition-all duration-300 placeholder-transparent pr-10"
               placeholder=" "
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onFocus={(e) => e.stopPropagation()}
               required
             />
             <label 
               htmlFor="password" 
-              className={`absolute text-sm duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] left-4 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4 
-              ${error ? 'text-red-400' : 'text-gray-400 peer-focus:text-primary'}`}
+              className="absolute text-sm text-gray-400 duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] left-4 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4 peer-focus:text-primary"
             >
               Password
             </label>
             
-            {/* Password Toggle Icon */}
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
@@ -198,21 +198,14 @@ const Login: React.FC = () => {
             </button>
           </div>
           
-          {/* Main Action Button */}
           <button 
             type="submit" 
             disabled={isLoading}
             className="w-full relative group overflow-hidden bg-gradient-to-r from-[#E50914] to-[#B20710] text-white font-bold py-3.5 rounded-lg shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
-                {isLoading ? (
-                    <>Processing...</>
-                ) : (
-                    <>{isLogin ? 'Sign In' : 'Sign Up'}</>
-                )}
+                {isLoading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
             </span>
-            {/* Shine Effect */}
-            <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
           </button>
         </form>
 
@@ -222,7 +215,6 @@ const Login: React.FC = () => {
           <div className="flex-grow h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent"></div>
         </div>
 
-        {/* Google Button */}
         <button 
           onClick={handleGoogleSignIn}
           className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-bold py-3.5 rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-[1.02] shadow-[0_0_15px_rgba(255,255,255,0.1)] active:scale-[0.98]"
@@ -231,7 +223,6 @@ const Login: React.FC = () => {
           <span>Continue with Google</span>
         </button>
 
-        {/* Toggle Mode */}
         <div className="mt-8 text-center">
           <p className="text-gray-400 text-sm">
             {isLogin ? "New to Movie Hub?" : "Already have an account?"} 
@@ -243,20 +234,7 @@ const Login: React.FC = () => {
             </button>
           </p>
         </div>
-
       </div>
-      
-      {/* Custom CSS for Shine Animation */}
-      <style>{`
-        @keyframes shine {
-            100% {
-                left: 125%;
-            }
-        }
-        .group-hover\\:animate-shine {
-            animation: shine 1s;
-        }
-      `}</style>
     </div>
   );
 };

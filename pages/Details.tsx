@@ -1,645 +1,311 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import * as ReactRouterDom from 'react-router-dom';
 import YouTube from 'react-youtube';
 import { Helmet } from 'react-helmet-async';
 import { tmdbService, getImageUrl } from '../services/tmdb';
-import { MovieDetails as MovieDetailsType, Episode } from '../types';
-import { useStore } from '../context/StoreContext';
-import { Star, Clock, PlayCircle, ArrowLeft, Check, X, Share2, Copy, Heart, Play, ChevronDown, Download, Server, Globe, ExternalLink, Facebook } from 'lucide-react';
+import { MovieDetails as MovieDetailsType, Episode, Movie, Image as TMDBImage } from '../types';
+import { 
+  Star, Clock, PlayCircle, X, LayoutGrid, Heart, Share2, 
+  Play, Users, Film 
+} from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
 import MovieDetailsLoader from '../components/MovieDetailsLoader';
 import MovieCard from '../components/MovieCard';
-import { parseSubtitle, SubtitleCue } from '../utils/subtitleHelper';
+
+const triggerPopunder = () => {
+  const SCRIPT_URL = 'https://awkwardmonopoly.com/54/42/28/544228badfcc4c2bfc0469db956fed8d.js';
+  if (!document.querySelector(`script[src="${SCRIPT_URL}"]`)) {
+    const script = document.createElement('script');
+    script.src = SCRIPT_URL;
+    script.async = true;
+    document.body.appendChild(script);
+  }
+};
 
 export default function Details() {
   const { type, id } = ReactRouterDom.useParams<{ type: 'movie' | 'tv'; id: string }>();
   const [data, setData] = useState<MovieDetailsType | null>(null);
+  const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentBackdropIndex, setCurrentBackdropIndex] = useState(0);
   
-  // YouTube specific state
-  const isYouTubeContent = id?.toString().startsWith('yt_');
-  const youtubeVideoId = isYouTubeContent ? id?.toString().replace('yt_', '') : null;
-  const isSinhalaContent = isYouTubeContent && data?.original_language === 'si';
-
-  // Player State
   const [showPlayer, setShowPlayer] = useState(false);
+  const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   
-  // Subtitle State
-  const [subtitleCues, setSubtitleCues] = useState<SubtitleCue[]>([]);
-  const [subtitleFileName, setSubtitleFileName] = useState<string>('');
-  
-  // TV Series State
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [currentEpisodes, setCurrentEpisodes] = useState<Episode[]>([]);
-  const [loadingEpisodes, setLoadingEpisodes] = useState(false);
 
-  // Modal States
-  const [isTrailerOpen, setIsTrailerOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
-  const [videoError, setVideoError] = useState(false); 
-  const [copySuccess, setCopySuccess] = useState('');
-  
-  const { user, addToWatchlist, removeFromWatchlist, isWatchlisted } = useStore();
+  // Backdrop Carousel State
+  const [backdrops, setBackdrops] = useState<TMDBImage[]>([]);
+  const [currentBackdropIndex, setCurrentBackdropIndex] = useState(0);
 
-  // --- 1. GLOBAL POPUNDER INJECTION (On Mount) ---
-  useEffect(() => {
-    const popScript = document.createElement('script');
-    popScript.src = "//awkwardmonopoly.com/54/42/28/544228badfcc4c2bfc0469db956fed8d.js";
-    popScript.async = true;
-    popScript.type = 'text/javascript';
-    document.body.appendChild(popScript);
+  const isAnime = data?.genres?.some(g => g.name.toLowerCase().includes('anime') || g.id === 16);
+  const isYouTubeContent = id?.startsWith('yt_');
 
-    return () => {
-      // Cleanup to prevent duplicate listeners if component remounts
-      if (document.body.contains(popScript)) {
-        document.body.removeChild(popScript);
-      }
-    };
-  }, []);
-
-  // Fetch Main Details
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setShowPlayer(false); 
-      setSubtitleCues([]);
-      setSubtitleFileName('');
-      
       if (type && id) {
-        if (isYouTubeContent) {
-           const mockData: MovieDetailsType = {
-               id: id as unknown as number, 
-               title: "Lanka Cinema Exclusive", 
-               original_language: 'si', 
-               overview: "This movie is streamed directly via the Lanka Cinema Server. Enjoy high-quality Sinhala movies and TV shows.",
-               poster_path: null, 
-               backdrop_path: null,
-               vote_average: 9.8,
-               vote_count: 1000,
-               release_date: new Date().toISOString(),
-               media_type: 'movie',
-               genres: [{id: 99, name: 'Sinhala'}, {id: 100, name: 'Lanka Cinema'}],
-               credits: { cast: [], crew: [{id: 1, name: "Lanka Cinema", job: "Distributor"}] },
-               videos: { results: [] },
-               reviews: { results: [] },
-               similar: { results: [] },
-               images: { backdrops: [], posters: [] },
-               status: "Released"
-           };
-           
-           setData(mockData);
-           setLoading(false);
-           return;
+        if (id.startsWith('yt_')) {
+          setLoading(false);
+          return;
         }
-
         try {
           const numericId = parseInt(id);
-          const minLoadTime = new Promise(resolve => setTimeout(resolve, 600));
-          const request = tmdbService.getDetails(type, numericId);
-          const [result] = await Promise.all([request, minLoadTime]);
+          const result = await tmdbService.getDetails(type, numericId);
           setData(result);
+          setRecommendations(result.similar.results || []);
+          
+          // Initialize backdrops (filter for high quality)
+          if (result.images?.backdrops) {
+            const filteredBackdrops = result.images.backdrops.slice(0, 8);
+            setBackdrops(filteredBackdrops.length > 0 ? filteredBackdrops : [{ file_path: result.backdrop_path } as TMDBImage]);
+          } else {
+            setBackdrops([{ file_path: result.backdrop_path } as TMDBImage]);
+          }
           
           setSeason(1);
           setEpisode(1);
         } catch (error) {
-          console.error(error);
+          console.error("Failed to fetch details", error);
         }
       }
       setLoading(false);
     };
     fetchData();
     window.scrollTo(0, 0);
-  }, [type, id, isYouTubeContent]);
+  }, [type, id]);
 
-
-  // Dynamic Episode Fetching
+  // Auto-Play Backdrop logic
   useEffect(() => {
-    const fetchSeasonEpisodes = async () => {
-        if (!isYouTubeContent && type === 'tv' && id) {
-            setLoadingEpisodes(true);
-            const seasonDetails = await tmdbService.getSeasonDetails(parseInt(id), season);
-            if (seasonDetails && seasonDetails.episodes) {
-                setCurrentEpisodes(seasonDetails.episodes);
-            } else {
-                setCurrentEpisodes([]);
-            }
-            setLoadingEpisodes(false);
-        }
-    };
-    fetchSeasonEpisodes();
-  }, [type, id, season, isYouTubeContent]);
-
-  // Backdrops Slider
-  useEffect(() => {
-    if (!data || !data.images?.backdrops?.length) return;
-    const maxImages = Math.min(data.images.backdrops.length, 5);
+    if (backdrops.length <= 1) return;
     const interval = setInterval(() => {
-      setCurrentBackdropIndex(prev => (prev + 1) % maxImages);
-    }, 6000); 
+      setCurrentBackdropIndex((prev) => (prev + 1) % backdrops.length);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [data]);
+  }, [backdrops]);
+
+  useEffect(() => {
+    const fetchEpisodes = async () => {
+      if (type === 'tv' && id && !id.startsWith('yt_')) {
+        const seasonDetails = await tmdbService.getSeasonDetails(parseInt(id), season);
+        if (seasonDetails) setCurrentEpisodes(seasonDetails.episodes);
+      }
+    };
+    fetchEpisodes();
+  }, [type, id, season]);
 
   const handleWatchNow = () => {
+    triggerPopunder();
     setShowPlayer(true);
     setTimeout(() => {
-        const playerSection = document.getElementById('video-player-section');
-        if (playerSection) {
-            playerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }, 100);
+      const el = document.getElementById('video-player-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 200);
   };
 
-  const handleLankaDownload = async () => {
-    if (!youtubeVideoId) return;
-    window.open(`https://www.y2mate.com/youtube/${youtubeVideoId}`, '_blank');
+  const handleTrailerClick = () => {
+    triggerPopunder();
+    setIsTrailerModalOpen(true);
   };
 
-  const handleSubtitleUpload = (file: File) => {
-    if (file) {
-      setSubtitleFileName(file.name);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        if (text) {
-          const parsed = parseSubtitle(text);
-          setSubtitleCues(parsed);
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
+  if (loading || (!data && !isYouTubeContent)) return <MovieDetailsLoader />;
 
-  const handleClearSubtitle = () => {
-    setSubtitleCues([]);
-    setSubtitleFileName('');
-  };
-
-  if (loading) return <MovieDetailsLoader />;
-  if (!data) return <div className="h-screen flex items-center justify-center dark:text-white text-gray-900">Content not found.</div>;
-
-  const trailer = data.videos.results.find(v => v.site === "YouTube" && v.type === "Trailer") 
-               || data.videos.results.find(v => v.site === "YouTube");
-               
-  const director = data.credits.crew.find(c => c.job === "Director")?.name;
-  const year = new Date(data.release_date || data.first_air_date || '').getFullYear();
-  const inWatchlist = isWatchlisted(data.id as any);
-  const displayTitle = data.title || data.name || 'Untitled';
+  const trailer = data?.videos.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"));
+  const year = data ? new Date(data.release_date || data.first_air_date || '').getFullYear() : 'N/A';
+  const displayTitle = data ? (data.title || data.name || 'Untitled') : 'Transmission Content';
   
-  const isAnime = data.genres.some(g => 
-    g.name.toLowerCase() === 'animation' || 
-    g.name.toLowerCase() === 'anime'
-  );
-  
-  const backdropImages = data.images.backdrops.length > 0 
-    ? data.images.backdrops.slice(0, 5) 
-    : [{ file_path: data.backdrop_path }];
-
-  const toggleWatchlist = () => {
-    if (!user) {
-      alert("Please login to manage your watchlist.");
-      return;
-    }
-    if (inWatchlist) removeFromWatchlist(data.id as any);
-    else addToWatchlist(data.id as any);
-  };
-
-  const handleShare = async () => {
-    const shareData = {
-      title: displayTitle,
-      text: `Check out ${displayTitle} on Movie Hub! \n${data.overview.substring(0, 100)}...`,
-      url: window.location.href
-    };
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        console.log('Share canceled');
-      }
-    } else {
-      setIsShareOpen(true);
-    }
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopySuccess('Link copied!');
-    setTimeout(() => setCopySuccess(''), 2000);
-  };
-
-  const opts: any = {
-    height: '100%',
-    width: '100%',
-    playerVars: {
-      autoplay: 1,
-      modestbranding: 1,
-      rel: 0,
-      origin: window.location.origin,
-      enablejsapi: 1,
-    },
-  };
-
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white pb-20 md:pb-0 relative transition-colors duration-300 animate-fade-in-up">
+    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white pb-12 transition-colors duration-500">
+      <Helmet><title>{`${displayTitle} (${year}) - MOVIE HUB`}</title></Helmet>
       
-      <Helmet>
-        <title>{`${displayTitle} (${year}) - MOVIE HUB`}</title>
-        <meta name="description" content={data.overview} />
-        <meta property="og:title" content={`${displayTitle} - MOVIE HUB`} />
-        <meta property="og:description" content={data.overview} />
-        <meta property="og:image" content={getImageUrl(data.backdrop_path, 'original')} />
-      </Helmet>
+      {/* Auto-Live Backdrop Slider Section - Height increased to shift content down */}
+      <div className="relative w-full h-[60vh] md:h-[80vh] lg:h-[90vh] bg-black overflow-hidden shadow-2xl">
+        {backdrops.map((img, idx) => (
+          <img 
+            key={idx}
+            src={getImageUrl(img.file_path, 'original')} 
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
+              idx === currentBackdropIndex ? 'opacity-70 md:opacity-50' : 'opacity-0'
+            }`} 
+            alt={`${displayTitle} background ${idx}`}
+          />
+        ))}
 
-      {/* Hero Section */}
-      <div className="relative w-full h-[60vh] md:h-[70vh] overflow-hidden group bg-black">
-        <ReactRouterDom.Link 
-          to={type === 'tv' ? '/tv' : '/movies'}
-          className="absolute top-20 left-4 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-white/20 shadow-lg shadow-black/50 hover:bg-black/80 transition-all duration-300 group-hover:scale-105"
-        >
-          <ArrowLeft size={16} className="text-white" />
-        </ReactRouterDom.Link>
-
-        {isYouTubeContent ? (
-            <div className="absolute inset-0">
-               <img 
-                   src={`https://img.youtube.com/vi/${youtubeVideoId}/maxresdefault.jpg`} 
-                   alt="Lanka Cinema" 
-                   className="w-full h-full object-cover"
-                   onError={(e) => {
-                       (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`;
-                   }}
-               />
-               <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-black via-transparent to-transparent"></div>
-               <div className="absolute inset-0 bg-black/20"></div>
-            </div>
-        ) : (
-            backdropImages.map((img, index) => (
-            <div 
-                key={img.file_path}
-                className={`absolute inset-0 transition-opacity duration-[1500ms] ease-in-out ${index === currentBackdropIndex ? 'opacity-100' : 'opacity-0'}`}
-            >
-                <img 
-                src={getImageUrl(img.file_path, 'original')} 
-                alt="" 
-                className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-black via-transparent to-transparent"></div>
-                <div className="absolute inset-0 bg-black/20"></div>
-            </div>
-            ))
-        )}
+        {/* Cinematic Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-black via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-white/20 dark:from-black/40 via-transparent to-transparent" />
         
-        <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-10">
-           <h1 className="text-3xl md:text-5xl font-bold leading-tight drop-shadow-2xl mb-3 md:mb-4 text-white">
-             {displayTitle} <span className="text-gray-300 font-light text-xl md:text-3xl">({year})</span>
+        {/* Hero Content - Positioned at bottom with increased padding for downward shift */}
+        <div className="absolute bottom-0 left-0 w-full p-8 md:p-16 lg:p-24 z-10 space-y-4 md:space-y-6">
+           {/* Mobile-Compact Typography */}
+           <h1 className="text-3xl md:text-6xl lg:text-8xl font-black text-white italic tracking-tighter uppercase leading-[0.85] drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
+              {displayTitle} <span className="text-gray-300 font-light text-2xl md:text-4xl lg:text-5xl">({year})</span>
            </h1>
-           <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-gray-200 mb-6">
-              <span className="flex items-center text-yellow-400 font-bold bg-black/40 px-2 py-1 rounded backdrop-blur-sm border border-white/10">
-                <Star size={14} className="mr-1 fill-current"/> {data.vote_average.toFixed(1)}
+           
+           <div className="flex flex-wrap items-center gap-2 md:gap-4 mb-4">
+              <span className="flex items-center text-yellow-400 font-black bg-black/70 px-3 py-1 md:px-5 md:py-2 rounded-xl border border-white/10 text-[10px] md:text-sm shadow-xl backdrop-blur-md">
+                <Star size={14} className="mr-1.5 fill-current"/> {data?.vote_average.toFixed(1) || 'N/A'}
               </span>
-              {isSinhalaContent && (
-                  <span className="flex items-center bg-red-600/80 px-2 py-1 rounded backdrop-blur-sm text-white border border-red-500/50">
-                    <Globe size={14} className="mr-1"/> Lanka Cinema
-                  </span>
-              )}
-              {data.runtime && (
-                <span className="flex items-center bg-black/20 px-2 py-1 rounded backdrop-blur-sm text-white">
-                  <Clock size={14} className="mr-1"/> {Math.floor(data.runtime / 60)}h {data.runtime % 60}m
+              <span className="flex items-center bg-white/15 px-3 py-1 md:px-5 md:py-2 rounded-xl text-white font-bold border border-white/10 text-[10px] md:text-sm backdrop-blur-xl shadow-xl">
+                <Clock size={14} className="mr-1.5"/> {data?.runtime || '?'}M
+              </span>
+              {data?.genres?.slice(0, 2).map(g => (
+                <span key={g.id} className="text-[9px] md:text-[11px] font-black uppercase tracking-widest text-white/90 bg-primary/30 border border-primary/40 px-3 py-1 md:px-5 md:py-2 rounded-full backdrop-blur-md">
+                  {g.name}
                 </span>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {data.genres.slice(0, 3).map(g => (
-                  <span key={g.id} className="bg-black/40 text-white px-2 py-0.5 rounded text-[10px] md:text-xs backdrop-blur-sm border border-white/5">{g.name}</span>
-                ))}
-              </div>
+              ))}
            </div>
 
-           {/* Hero Actions Container */}
-           <div className="flex flex-col gap-5 items-start animate-fade-in-up">
-               <div className="flex flex-wrap items-center gap-4">
-                   <button 
-                     onClick={handleWatchNow}
-                     className="flex items-center px-6 py-3 bg-primary hover:bg-red-700 text-white font-bold rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-primary/30 group"
-                   >
-                     <Play size={20} className="mr-2 fill-current group-hover:scale-110 transition-transform" /> Watch Now
-                   </button>
-                   {trailer && !isYouTubeContent && (
-                     <button 
-                       onClick={() => { setVideoError(false); setIsTrailerOpen(true); }}
-                       className="flex items-center px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-bold rounded-lg transition-transform transform hover:scale-105 border border-white/20"
-                     >
-                       <PlayCircle size={20} className="mr-2" /> Trailer
-                     </button>
-                   )}
-
-                   {isSinhalaContent && (
-                       <button
-                           onClick={handleLankaDownload}
-                           className="flex items-center px-6 py-3 bg-gradient-to-r from-green-700 to-green-600 hover:from-green-600 hover:to-green-500 backdrop-blur-sm text-white font-bold rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-green-600/30 border border-green-500/30"
-                       >
-                           <Download size={20} className="mr-2" />
-                           Download via Lanka Cinema
-                       </button>
-                   )}
-               </div>
+           <div className="flex items-center gap-3 md:gap-6">
+              <button 
+                onClick={handleWatchNow} 
+                className="flex-1 md:flex-none flex items-center justify-center px-6 py-3 md:px-12 md:py-5 bg-primary text-white font-black uppercase tracking-[0.2em] rounded-xl shadow-[0_10px_30px_-5px_rgba(229,9,20,0.5)] active:scale-95 transition-all text-[11px] md:text-sm"
+              >
+                <PlayCircle size={20} className="mr-2 md:mr-3.5" /> Watch Now
+              </button>
+              {trailer && (
+                 <button 
+                   onClick={handleTrailerClick} 
+                   className="flex-1 md:flex-none flex items-center justify-center px-6 py-3 md:px-12 md:py-5 bg-gray-600/30 border border-white/20 text-white font-black uppercase tracking-[0.2em] rounded-xl text-[11px] md:text-sm backdrop-blur-2xl transition-all active:scale-95 hover:bg-white/10 shadow-lg"
+                 >
+                    <Play size={18} className="mr-2 md:mr-3.5" /> Trailer
+                 </button>
+              )}
            </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-10">
-        <div className="max-w-4xl">
-           <div className="flex items-center justify-between mb-4">
-             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">Overview</h3>
-             
-             <div className="flex items-center gap-4">
-                <button 
-                  onClick={toggleWatchlist}
-                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  title={inWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
-                >
-                   <Heart 
-                     size={24} 
-                     className={`transition-colors duration-300 ${inWatchlist ? 'fill-primary text-primary' : 'text-gray-500 hover:text-primary'}`} 
-                   />
-                </button>
-                <button 
-                   onClick={handleShare}
-                   className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-primary transition-all duration-300"
-                   title="Share this movie"
-                >
-                   <Share2 size={24} />
-                </button>
-             </div>
+      <div className="max-w-7xl mx-auto px-6 py-10 md:py-16 space-y-16 md:space-y-24">
+        
+        {/* Mission Briefing / Overview */}
+        <div className="max-w-4xl space-y-4 md:space-y-8 animate-fade-in-up" onClick={triggerPopunder}>
+           <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/5 pb-3">
+              <div className="flex items-center gap-3">
+                 <div className="w-1.5 h-6 md:w-2.5 md:h-10 bg-primary rounded-full shadow-[0_0_15px_rgba(229,9,20,0.5)]" />
+                 <h3 className="text-base md:text-xl font-black uppercase tracking-[0.3em] italic text-gray-900 dark:text-white cursor-pointer">Mission Briefing</h3>
+              </div>
+              <div className="flex gap-3 md:gap-5">
+                 <button className="p-3 md:p-4 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full text-gray-600 dark:text-white hover:text-primary transition-all active:scale-90 shadow-sm"><Heart size={20} /></button>
+                 <button className="p-3 md:p-4 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full text-gray-600 dark:text-white hover:text-cyan-500 transition-all active:scale-90 shadow-sm"><Share2 size={20} /></button>
+              </div>
            </div>
-
-           <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-base md:text-lg font-light">
-             {data.overview}
+           <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-[13px] md:text-[18px] font-medium tracking-tight cursor-pointer">
+             {data?.overview || "Intelligence data redacted."}
            </p>
-           {director && (
-             <div className="mt-4 flex items-center gap-2">
-               <span className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Director</span>
-               <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-               <p className="text-primary font-medium">{director}</p>
-             </div>
-           )}
-           
-           {isSinhalaContent && (
-               <div className="mt-6 p-4 bg-gradient-to-r from-red-900/40 to-black border border-red-500/30 rounded-xl flex items-center gap-4 shadow-lg">
-                   <div className="p-3 bg-red-600 rounded-full text-white shadow-red-500/50 shadow-md">
-                        <Server size={24} />
-                   </div>
-                   <div>
-                       <h4 className="font-bold text-white flex items-center gap-2">
-                           Lanka Cinema Server <span className="text-[10px] bg-green-500 text-white px-2 rounded-full">ONLINE</span>
-                       </h4>
-                       <p className="text-sm text-gray-300">Premium Sinhala content streamed directly via our dedicated high-speed server.</p>
-                   </div>
-               </div>
-           )}
         </div>
 
-        {!isYouTubeContent && (
-        <section>
-          <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white border-l-4 border-primary pl-3">Top Cast</h2>
-          <div className="flex space-x-4 overflow-x-auto pb-4 hide-scrollbar">
-            {data.credits.cast.slice(0, 15).map(actor => (
-              <ReactRouterDom.Link to={`/actor/${actor.id}`} key={actor.id} className="flex-shrink-0 w-24 md:w-28 text-center group cursor-pointer">
-                <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-gray-200 dark:border-gray-800 group-hover:border-primary transition-colors duration-300 mb-2 mx-auto shadow-lg relative">
-                   {actor.profile_path ? (
-                     <img src={getImageUrl(actor.profile_path)} alt={actor.name} className="w-full h-full object-cover" loading="lazy" />
-                   ) : (
-                     <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold bg-gray-200 dark:bg-gray-800">
-                        {actor.name[0]}
-                     </div>
-                   )}
-                </div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate px-1 group-hover:text-primary transition-colors">{actor.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate px-1">{actor.character}</p>
-              </ReactRouterDom.Link>
-            ))}
-          </div>
-        </section>
+        {/* Cast Section */}
+        {!isYouTubeContent && data && data.credits.cast.length > 0 && (
+          <section className="space-y-8 md:space-y-10 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <h3 className="text-[11px] md:text-[13px] font-black uppercase tracking-[0.4em] italic text-gray-900 dark:text-white flex items-center gap-3">
+              <Users size={20} className="text-primary" /> Active Operatives
+            </h3>
+            <div className="flex space-x-6 md:space-x-10 overflow-x-auto pb-6 md:pb-10 hide-scrollbar px-2">
+              {data.credits.cast.slice(0, 15).map(actor => (
+                <ReactRouterDom.Link key={actor.id} to={`/actor/${actor.id}`} onClick={triggerPopunder} className="flex-shrink-0 w-24 md:w-32 text-center group">
+                  <div className="w-20 h-20 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-gray-200 dark:border-white/10 group-hover:border-primary transition-all duration-700 mb-3 md:mb-5 mx-auto shadow-xl">
+                     {actor.profile_path ? (
+                       <img src={getImageUrl(actor.profile_path)} alt={actor.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                     ) : (
+                       <div className="w-full h-full flex items-center justify-center text-gray-400 font-black bg-gray-100 dark:bg-gray-900 text-[10px] md:text-xs uppercase italic">{actor.name[0]}</div>
+                     )}
+                  </div>
+                  <h4 className="text-[10px] md:text-[12px] font-black text-gray-900 dark:text-white truncate uppercase tracking-tighter group-hover:text-primary transition-colors mb-1">{actor.name}</h4>
+                  <p className="text-[9px] md:text-[10px] text-gray-500 truncate italic uppercase tracking-tighter">{actor.character}</p>
+                </ReactRouterDom.Link>
+              ))}
+            </div>
+          </section>
         )}
 
-        {/* --- VIDEO PLAYER SECTION --- */}
+        {/* Video Player Segment */}
         {showPlayer && (
-            <section className="pt-6 border-t border-gray-200 dark:border-gray-800 scroll-mt-24 animate-fade-in-up" id="video-player-section">
-            
-            {isYouTubeContent && youtubeVideoId ? (
-                // DEDICATED YOUTUBE PLAYER
-                <div className="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800">
-                     <YouTube
-                        videoId={youtubeVideoId}
-                        opts={{
-                            height: '100%',
-                            width: '100%',
-                            playerVars: { autoplay: 1, rel: 0, modestbranding: 1 }
-                        }}
-                        className="w-full h-full"
-                        iframeClassName="w-full h-full"
-                     />
-                </div>
-            ) : (
-                // STANDARD TMDB PLAYER (Previous Logic)
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Left Column: Player (Span 2) */}
-                    <div className="lg:col-span-2 space-y-4">
-                        <VideoPlayer 
-                            tmdbId={parseInt(id!)} 
-                            type={type as 'movie' | 'tv'}
-                            title={displayTitle}
-                            year={year.toString()}
-                            season={season}
-                            episode={episode}
-                            isAnime={isAnime}
-                            originalLanguage={data.original_language}
-                            subtitleCues={subtitleCues}
-                            subtitleFileName={subtitleFileName}
-                            onSubtitleUpload={handleSubtitleUpload}
-                            onClearSubtitle={handleClearSubtitle}
-                        />
-                    </div>
+            <section className="pt-10 md:pt-20 border-t border-gray-100 dark:border-white/5 scroll-mt-24">
+                <VideoPlayer 
+                    tmdbId={data?.id as number || 0} 
+                    type={type as 'movie' | 'tv'} 
+                    season={season} 
+                    episode={episode} 
+                    isAnime={isAnime}
+                />
 
-                    {/* Right Column: Episode List (TV Only) */}
-                    {type === 'tv' && (
-                        <div className="lg:col-span-1 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col h-[500px] lg:h-auto max-h-[600px]">
-                            {/* Season Selector Header */}
-                            <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-black/20 z-10">
-                            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Select Season</h3>
-                            <div className="relative">
-                                <select 
-                                    value={season}
-                                    onChange={(e) => {
-                                    setSeason(Number(e.target.value));
-                                    setEpisode(1);
-                                    }}
-                                    className="w-full appearance-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 font-bold focus:ring-2 focus:ring-primary outline-none cursor-pointer"
-                                >
-                                    {data.seasons?.filter(s => s.season_number > 0).map(s => (
-                                    <option key={s.id} value={s.season_number}>Season {s.season_number}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={18} />
-                            </div>
-                            </div>
-
-                            {/* Episode List */}
-                            <div className="overflow-y-auto flex-1 p-2 space-y-2 custom-scrollbar">
-                            {loadingEpisodes ? (
-                                <div className="flex flex-col items-center justify-center h-40 space-y-2">
-                                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                    <p className="text-xs text-gray-500">Loading episodes...</p>
-                                </div>
-                            ) : (
-                                currentEpisodes.map((ep) => (
-                                    <button
-                                    key={ep.id}
-                                    onClick={() => setEpisode(ep.episode_number)}
-                                    className={`w-full flex items-start gap-3 p-2 rounded-lg transition-all duration-200 text-left group ${
-                                        episode === ep.episode_number 
-                                        ? 'bg-primary/10 border border-primary/30' 
-                                        : 'hover:bg-gray-200 dark:hover:bg-gray-800 border border-transparent'
-                                    }`}
-                                    >
-                                        {/* Thumbnail */}
-                                        <div className="relative w-28 aspect-video bg-gray-300 dark:bg-gray-800 rounded overflow-hidden flex-shrink-0">
-                                        {ep.still_path ? (
-                                            <img src={getImageUrl(ep.still_path)} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-500">
-                                                <PlayCircle size={24} />
-                                            </div>
-                                        )}
-                                        {/* Rating Badge */}
-                                        <div className="absolute top-1 right-1 bg-black/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                            <Star size={8} className="text-yellow-400 fill-yellow-400" /> {ep.vote_average.toFixed(1)}
-                                        </div>
-                                        </div>
-                                        
-                                        {/* Info */}
-                                        <div className="flex-1 min-w-0 py-1">
-                                        <p className={`text-xs font-bold mb-0.5 truncate ${episode === ep.episode_number ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
-                                            {ep.episode_number}. {ep.name}
-                                        </p>
-                                        <p className="text-[10px] text-gray-500 line-clamp-2 leading-relaxed">
-                                            {ep.overview || "No description available."}
-                                        </p>
-                                        </div>
-                                    </button>
-                                ))
-                            )}
-                            </div>
+                {/* TV Series Season & Episode Selection */}
+                {type === 'tv' && !isYouTubeContent && (
+                    <div className="mt-16 md:mt-24 space-y-8 md:space-y-12">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 md:pb-10 border-b border-gray-100 dark:border-white/5">
+                            <h3 className="text-[12px] md:text-[14px] font-black uppercase tracking-[0.3em] italic text-gray-900 dark:text-white flex items-center gap-3">
+                              <LayoutGrid size={22} className="text-primary" /> Transmission Logs
+                            </h3>
+                            <select 
+                                value={season} 
+                                onChange={(e) => { setSeason(Number(e.target.value)); setEpisode(1); }} 
+                                className="w-full md:w-auto bg-gray-100 dark:bg-gray-900 border-2 border-transparent focus:border-primary rounded-xl px-6 py-3 font-black text-gray-900 dark:text-white outline-none text-[10px] uppercase tracking-widest cursor-pointer shadow-sm"
+                            >
+                                {data?.seasons?.filter(s => s.season_number > 0).map(s => <option key={s.id} value={s.season_number}>SEASON {s.season_number}</option>)}
+                            </select>
                         </div>
-                    )}
-                </div>
-            )}
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] md:max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                            {currentEpisodes.map(ep => (
+                                <button 
+                                  key={ep.id} 
+                                  onClick={() => { setEpisode(ep.episode_number); document.getElementById('video-player-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} 
+                                  className={`text-left flex gap-4 p-3 md:p-4 rounded-2xl border-2 transition-all duration-300 ${episode === ep.episode_number ? 'bg-primary/5 dark:bg-primary/10 border-primary shadow-lg ring-1 ring-primary/30' : 'bg-gray-50 dark:bg-white/5 border-transparent hover:border-gray-200 dark:hover:border-white/10'}`}
+                                >
+                                    <div className="relative shrink-0 w-24 md:w-40 h-16 md:h-24 rounded-lg md:rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-md">
+                                        <img src={getImageUrl(ep.still_path, 'w500')} alt={ep.name} className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-1 overflow-hidden flex flex-col justify-center">
+                                        <h4 className={`text-[11px] md:text-[14px] font-black uppercase italic tracking-tight truncate ${episode === ep.episode_number ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
+                                            EP.{ep.episode_number} - {ep.name}
+                                        </h4>
+                                        <p className="text-[10px] md:text-[12px] text-gray-500 line-clamp-2 mt-1 font-medium leading-tight">
+                                          {ep.overview || "Narrative data unavailable."}
+                                        </p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </section>
         )}
 
-        {/* Similar Movies */}
-        {!isYouTubeContent && data.similar.results.length > 0 && (
-          <section className="pt-8 border-t border-gray-200 dark:border-gray-800">
-            <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white border-l-4 border-primary pl-3">More Like This</h2>
-             <div className="flex space-x-4 overflow-x-auto pb-6 hide-scrollbar">
-                {data.similar.results.map((movie) => (
-                    <div key={movie.id} className="w-[150px] md:w-[200px] flex-shrink-0">
-                       <MovieCard movie={{...movie, media_type: type === 'tv' ? 'tv' : 'movie'}} />
-                    </div>
-                ))}
-             </div>
+        {/* Similar Recommendations */}
+        {!isYouTubeContent && recommendations.length > 0 && (
+          <section className="pt-10 md:pt-20 border-t border-gray-100 dark:border-white/5 animate-fade-in-up">
+            <h3 className="text-[12px] md:text-[13px] font-black uppercase tracking-[0.4em] italic text-gray-900 dark:text-white mb-8 md:mb-12 flex items-center gap-3">
+              <Film size={20} className="text-primary" /> Data Similarities
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-10">
+              {recommendations.slice(0, 12).map(movie => (
+                <MovieCard key={movie.id} movie={movie} featured />
+              ))}
+            </div>
           </section>
         )}
       </div>
 
-      {/* Trailer Modal (Rest same as before) */}
-      {isTrailerOpen && trailer && !isYouTubeContent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in-up">
-           <div className="absolute inset-0" onClick={() => setIsTrailerOpen(false)}></div>
-           <div className="relative w-full max-w-5xl">
-             {/* ... Modal Content ... */}
-             <button 
-               onClick={() => setIsTrailerOpen(false)}
-               className="absolute top-[-45px] right-0 z-50 flex items-center text-white hover:text-primary transition-colors pb-2"
-             >
-               <span className="mr-2 text-sm font-bold uppercase tracking-widest hidden sm:inline text-white">Close</span>
-               <div className="bg-black/50 p-2 rounded-full border border-white/20 hover:bg-white/20">
-                 <X size={24} className="text-white" />
-               </div>
-             </button>
-
-             <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800 flex flex-col justify-center items-center relative z-40">
-               {!videoError ? (
-                 <YouTube
-                   videoId={trailer.key}
-                   opts={opts}
-                   className="w-full h-full"
-                   iframeClassName="w-full h-full"
-                   onError={() => setVideoError(true)}
-                 />
-               ) : (
-                 <div className="flex flex-col items-center text-center p-8 space-y-4">
-                    {/* Error State */}
-                    <div className="p-4 bg-gray-800 rounded-full text-gray-400 mb-2">
-                      <PlayCircle size={48} />
-                    </div>
-                    <h3 className="text-xl font-bold text-white">Trailer Unavailable Here</h3>
-                    <a 
-                      href={`https://www.youtube.com/watch?v=${trailer.key}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="inline-flex items-center px-6 py-3 bg-primary text-white font-bold rounded hover:bg-red-700 transition"
-                    >
-                      Watch on YouTube <ExternalLink size={18} className="ml-2"/>
-                    </a>
-                 </div>
-               )}
-             </div>
+      {/* Cinematic Trailer Overlay */}
+      {isTrailerModalOpen && trailer && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black animate-fade-in">
+           <button 
+             onClick={() => setIsTrailerModalOpen(false)} 
+             className="absolute top-6 right-6 p-4 bg-white/10 hover:bg-primary text-white rounded-full transition-all border border-white/20 z-[1100] active:scale-90"
+           >
+             <X size={24} />
+           </button>
+           <div className="w-[94%] md:w-[80%] lg:w-[70%] aspect-video rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(229,9,20,0.4)] border border-white/10 bg-black">
+              <YouTube 
+                videoId={trailer.key} 
+                className="w-full h-full" 
+                containerClassName="w-full h-full" 
+                opts={{ height: '100%', width: '100%', playerVars: { autoplay: 1, rel: 0, modestbranding: 1 } }} 
+              />
            </div>
-        </div>
-      )}
-
-      {/* Share Modal */}
-      {isShareOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in-up">
-          <div className="absolute inset-0" onClick={() => setIsShareOpen(false)}></div>
-          <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-xl p-6 shadow-2xl relative z-10">
-            {/* ... Share Content ... */}
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Share this {type === 'movie' ? 'Movie' : 'TV Show'}</h3>
-            <div className="grid grid-cols-1 gap-3">
-              <a 
-                href={`https://wa.me/?text=${encodeURIComponent(`Check out ${displayTitle} on Movie Hub! ${window.location.href}`)}`}
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 p-3 bg-[#25D366] text-white rounded-lg font-bold hover:opacity-90 transition"
-              >
-                WhatsApp
-              </a>
-              <a 
-                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 p-3 bg-[#1877F2] text-white rounded-lg font-bold hover:opacity-90 transition"
-              >
-                <Facebook size={20} /> Facebook
-              </a>
-              <button 
-                onClick={copyToClipboard}
-                className="flex items-center justify-center gap-2 p-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-              >
-                {copySuccess ? <Check size={20} /> : <Copy size={20} />}
-                {copySuccess || 'Copy Link'}
-              </button>
-            </div>
-            <button 
-              onClick={() => setIsShareOpen(false)} 
-              className="mt-6 w-full py-2 text-gray-500 hover:text-gray-900 dark:hover:text-white text-sm"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       )}
     </div>
