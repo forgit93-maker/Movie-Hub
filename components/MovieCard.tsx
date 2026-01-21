@@ -5,6 +5,16 @@ import { Star, PlayCircle } from 'lucide-react';
 import { Movie } from '../types';
 import { getImageUrl } from '../services/tmdb';
 
+const triggerPopunder = () => {
+  const SCRIPT_URL = 'https://awkwardmonopoly.com/54/42/28/544228badfcc4c2bfc0469db956fed8d.js';
+  if (!document.querySelector(`script[src="${SCRIPT_URL}"]`)) {
+    const script = document.createElement('script');
+    script.src = SCRIPT_URL;
+    script.async = true;
+    document.body.appendChild(script);
+  }
+};
+
 interface MovieCardProps {
   movie: Movie;
   featured?: boolean;
@@ -22,6 +32,7 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, featured = false }) => {
     <div className={`relative group w-full ${featured ? 'h-full' : 'w-[140px] md:w-[180px] flex-shrink-0'}`}>
       <Link 
         to={`/details/${mediaType}/${movie.id}`} 
+        onClick={triggerPopunder}
         className="block h-full"
       >
         {/* Card Container */}

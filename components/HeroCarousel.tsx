@@ -1,8 +1,19 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Movie } from '../types';
 import { getImageUrl } from '../services/tmdb';
 import { Star, ChevronRight, ChevronLeft } from 'lucide-react';
+
+const triggerPopunder = () => {
+  const SCRIPT_URL = 'https://awkwardmonopoly.com/54/42/28/544228badfcc4c2bfc0469db956fed8d.js';
+  if (!document.querySelector(`script[src="${SCRIPT_URL}"]`)) {
+    const script = document.createElement('script');
+    script.src = SCRIPT_URL;
+    script.async = true;
+    document.body.appendChild(script);
+  }
+};
 
 interface HeroCarouselProps {
   items: Movie[];
@@ -59,6 +70,7 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ items, loading = false }) =
       {items.map((item, index) => (
         <Link
           to={`/details/${item.media_type || 'movie'}/${item.id}`}
+          onClick={triggerPopunder}
           key={item.id}
           className={`absolute inset-0 transition-opacity duration-1000 ease-in-out cursor-pointer ${
             index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'

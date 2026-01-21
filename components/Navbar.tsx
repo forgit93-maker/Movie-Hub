@@ -4,6 +4,16 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Sun, Moon, X } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
+const triggerPopunder = () => {
+  const SCRIPT_URL = 'https://awkwardmonopoly.com/54/42/28/544228badfcc4c2bfc0469db956fed8d.js';
+  if (!document.querySelector(`script[src="${SCRIPT_URL}"]`)) {
+    const script = document.createElement('script');
+    script.src = SCRIPT_URL;
+    script.async = true;
+    document.body.appendChild(script);
+  }
+};
+
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -35,6 +45,7 @@ const Navbar: React.FC = () => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
         if (searchQuery.trim()) {
+             triggerPopunder();
              navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
         }
     }
@@ -87,6 +98,7 @@ const Navbar: React.FC = () => {
   };
 
   const toggleDesktopSearch = () => {
+    triggerPopunder();
     if (isDesktopSearchOpen) {
       if (searchQuery.trim()) {
         setSearchQuery('');
@@ -101,6 +113,7 @@ const Navbar: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    triggerPopunder();
     await logout();
     navigate('/');
   };
@@ -110,15 +123,15 @@ const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex-shrink-0">
-            <Link to="/" className="text-primary font-bold text-2xl tracking-tighter hover:opacity-90 transition-opacity">MOVIE HUB</Link>
+            <Link to="/" onClick={triggerPopunder} className="text-primary font-bold text-2xl tracking-tighter hover:opacity-90 transition-opacity">MOVIE HUB</Link>
           </div>
 
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-4">
-              <Link to="/" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</Link>
-              <Link to="/movies" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Movies</Link>
-              <Link to="/tv" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">TV Series</Link>
-              {user && <Link to="/watchlist" className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Watchlist</Link>}
+              <Link to="/" onClick={triggerPopunder} className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</Link>
+              <Link to="/movies" onClick={triggerPopunder} className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Movies</Link>
+              <Link to="/tv" onClick={triggerPopunder} className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">TV Series</Link>
+              {user && <Link to="/watchlist" onClick={triggerPopunder} className="text-gray-900 dark:text-gray-300 hover:text-primary dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Watchlist</Link>}
             </div>
           </div>
 
@@ -158,7 +171,7 @@ const Navbar: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              onClick={() => { triggerPopunder(); setIsSearchOpen(!isSearchOpen); }}
               className="md:hidden text-gray-700 dark:text-gray-300 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition"
             >
               <Search size={22} />
@@ -173,7 +186,7 @@ const Navbar: React.FC = () => {
 
             <div className="hidden md:block">
               {user ? (
-                <div className="flex items-center space-x-3 group relative cursor-pointer">
+                <div className="flex items-center space-x-3 group relative cursor-pointer" onClick={triggerPopunder}>
                   {user.photoURL ? (
                     <img src={user.photoURL} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-gray-700 shadow-md" />
                   ) : (
@@ -185,7 +198,7 @@ const Navbar: React.FC = () => {
                     <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800 text-sm text-gray-500 dark:text-gray-400">
                       Signed in as <br /><span className="text-gray-900 dark:text-white font-medium truncate block">{user.email}</span>
                     </div>
-                    <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Your Profile</Link>
+                    <Link to="/profile" onClick={triggerPopunder} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Your Profile</Link>
                     <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Sign out</button>
                   </div>
                 </div>

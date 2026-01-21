@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { SubtitleCue } from '../utils/subtitleHelper';
 import { SubtitleStyle } from '../types';
@@ -34,13 +35,14 @@ const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ cues, currentTime, of
     WebkitBoxDecorationBreak: 'clone',
     textAlign: 'center',
     lineHeight: '1.4',
-    fontFamily: 'Arial, sans-serif', // Clean cinematic font
+    fontFamily: 'Arial, sans-serif', 
     fontWeight: 600,
   };
 
   return (
     <div 
-      className="absolute inset-x-0 bottom-[10%] z-[9999] flex flex-col items-center justify-end pointer-events-none p-4"
+      className="absolute inset-x-0 bottom-[10%] flex flex-col items-center justify-end pointer-events-none p-4"
+      style={{ zIndex: 2147483647 }}
       aria-hidden="true"
     >
       <div style={{ opacity: style.opacity }}>
