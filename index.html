@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>MOVIE HUB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -13,7 +14,7 @@
           extend: {
             colors: {
               primary: '#e50914',
-              dark: '#000000', // Changed to pure black as requested
+              dark: '#000000',
               darker: '#0b0b0b',
               gray: {
                 800: '#1f1f1f',
@@ -29,9 +30,9 @@
     </script>
     <style>
       body {
-        /* Default to dark mode colors, let App.tsx handle the class toggling */
         background-color: #000000;
         color: #ffffff;
+        overflow-x: hidden;
       }
       .hide-scrollbar::-webkit-scrollbar {
         display: none;
@@ -41,17 +42,32 @@
         scrollbar-width: none;
       }
       @keyframes fade-in-up {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
       }
       .animate-fade-in-up {
         animation: fade-in-up 0.8s ease-out forwards;
+      }
+      
+      /* Mobile Landscape Fake Fullscreen Fix */
+      @media (max-width: 932px) and (orientation: landscape) {
+        .mobile-landscape-fs {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          z-index: 999999 !important;
+          background: black !important;
+          border: none !important;
+          border-radius: 0 !important;
+        }
+        .mobile-landscape-fs iframe {
+          height: 100vh !important;
+          width: 100vw !important;
+        }
+        /* Hide UI elements that might bleed through */
+        nav, .bottom-nav { display: none !important; }
       }
     </style>
   <script type="importmap">
