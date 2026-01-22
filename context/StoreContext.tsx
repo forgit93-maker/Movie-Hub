@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User as AppUser } from '../types';
 import { auth, googleProvider, db } from '../services/firebase';
@@ -37,47 +38,53 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const userRef = doc(db, 'users', firebaseUser.uid);
         
         // Listen to Firestore changes in real-time
-        const unsubscribeSnapshot = onSnapshot(userRef, async (docSnap) => {
-          if (docSnap.exists()) {
-            // User exists in Firestore, sync state
-            const data = docSnap.data();
-            setUser({
-              id: firebaseUser.uid,
-              name: data.name || firebaseUser.displayName || 'User',
-              username: data.username || firebaseUser.email?.split('@')[0] || 'user',
-              email: firebaseUser.email || '',
-              photoURL: data.profilePic || firebaseUser.photoURL,
-              language: data.language || 'en',
-              watchlist: data.watchlist || [],
-              favorites: []
-            });
-            setWatchlist(data.watchlist || []);
-          } else {
-            // New user - Create Firestore Doc
-            const defaultUsername = firebaseUser.email?.split('@')[0] || `user_${Date.now()}`;
-            const newUser: AppUser = {
-              id: firebaseUser.uid,
-              name: firebaseUser.displayName || defaultUsername,
-              username: defaultUsername,
-              email: firebaseUser.email || '',
-              photoURL: firebaseUser.photoURL,
-              language: 'en',
-              watchlist: [], 
-              favorites: []
-            };
-            
-            await setDoc(userRef, {
-              username: newUser.username,
-              email: newUser.email,
-              name: newUser.name,
-              profilePic: newUser.photoURL,
-              language: 'en',
-              watchlist: []
-            });
-            setUser(newUser);
+        const unsubscribeSnapshot = onSnapshot(userRef, 
+          async (docSnap) => {
+            if (docSnap.exists()) {
+              // User exists in Firestore, sync state
+              const data = docSnap.data();
+              setUser({
+                id: firebaseUser.uid,
+                name: data.name || firebaseUser.displayName || 'User',
+                username: data.username || firebaseUser.email?.split('@')[0] || 'user',
+                email: firebaseUser.email || '',
+                photoURL: data.profilePic || firebaseUser.photoURL,
+                language: data.language || 'en',
+                watchlist: data.watchlist || [],
+                favorites: []
+              });
+              setWatchlist(data.watchlist || []);
+            } else {
+              // New user - Create Firestore Doc
+              const defaultUsername = firebaseUser.email?.split('@')[0] || `user_${Date.now()}`;
+              const newUser: AppUser = {
+                id: firebaseUser.uid,
+                name: firebaseUser.displayName || defaultUsername,
+                username: defaultUsername,
+                email: firebaseUser.email || '',
+                photoURL: firebaseUser.photoURL,
+                language: 'en',
+                watchlist: [], 
+                favorites: []
+              };
+              
+              await setDoc(userRef, {
+                username: newUser.username,
+                email: newUser.email,
+                name: newUser.name,
+                profilePic: newUser.photoURL,
+                language: 'en',
+                watchlist: []
+              });
+              setUser(newUser);
+            }
+            setLoading(false);
+          }, 
+          (error) => {
+            console.error("Firestore Snapshot Error:", error?.message || "Unknown error");
+            setLoading(false);
           }
-          setLoading(false);
-        });
+        );
 
         return () => unsubscribeSnapshot();
       } else {
@@ -120,7 +127,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (error.code === 'auth/popup-closed-by-user') {
             throw new Error("Sign in cancelled.");
         }
-        throw error;
+        // Throw a plain error with message instead of the raw Firebase error object
+        throw new Error(error?.message || "Google sign-in failed.");
     }
   };
 
