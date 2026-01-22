@@ -8,23 +8,21 @@ interface SubtitleOverlayProps {
   currentTime: number;
   offset: number;
   style: SubtitleStyle;
+  isLandscape?: boolean;
 }
 
-const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ cues, currentTime, offset, style }) => {
-  // Calculate the effective time for subtitle lookup
+const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ cues, currentTime, offset, style, isLandscape }) => {
   const adjustedTime = currentTime - offset;
 
-  // Find the active cue
   const activeCue = useMemo(() => {
     return cues.find(cue => adjustedTime >= cue.startTime && adjustedTime <= cue.endTime);
   }, [cues, adjustedTime]);
 
   if (!activeCue) return null;
 
-  // Dynamic CSS construction based on props
   const textStyle: React.CSSProperties = {
     color: style.color,
-    fontSize: `${style.fontSize}px`,
+    fontSize: isLandscape ? `${style.fontSize * 1.3}px` : `${style.fontSize}px`,
     backgroundColor: style.backgroundColor,
     textShadow: style.hasShadow 
       ? `-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 2px 2px 4px rgba(0,0,0,0.8)` 
@@ -41,7 +39,7 @@ const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ cues, currentTime, of
 
   return (
     <div 
-      className="absolute inset-x-0 bottom-[10%] flex flex-col items-center justify-end pointer-events-none p-4"
+      className={`absolute inset-x-0 ${isLandscape ? 'bottom-[5%] fixed' : 'bottom-[10%]'} flex flex-col items-center justify-end pointer-events-none p-4`}
       style={{ zIndex: 2147483647 }}
       aria-hidden="true"
     >

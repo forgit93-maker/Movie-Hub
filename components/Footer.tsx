@@ -103,12 +103,12 @@ const Footer: React.FC = () => {
             MOVIE HUB
           </Link>
           
-          {/* Social Icons Hub */}
+          {/* Social Icons Hub - Updated Links */}
           <div className="flex justify-center space-x-8 md:space-x-10 mb-10">
-            <a href="#" className="text-gray-400 hover:text-primary transition-all hover:scale-125"><Facebook size={24} /></a>
-            <a href="#" className="text-gray-400 hover:text-primary transition-all hover:scale-125"><Instagram size={24} /></a>
-            <a href="#" className="text-gray-400 hover:text-primary transition-all hover:scale-125"><Youtube size={24} /></a>
-            <a href="#" className="text-gray-400 hover:text-primary transition-all hover:scale-125"><Music2 size={24} /></a>
+            <a href="https://www.facebook.com/share/1D8xGfpQoY/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary transition-all hover:scale-125"><Facebook size={24} /></a>
+            <a href="https://www.instagram.com/movie_hub.lk?igsh=OW54ZDV5dnI1Z3ow" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary transition-all hover:scale-125"><Instagram size={24} /></a>
+            <a href="https://youtube.com/@movie_master-2.0.0?si=EbMfWxB8PITo6TOQ" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary transition-all hover:scale-125"><Youtube size={24} /></a>
+            <a href="https://www.tiktok.com/@movie_hub_lk?_r=1&_t=ZS-93FY5uB6VvB" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-primary transition-all hover:scale-125"><Music2 size={24} /></a>
           </div>
 
           {/* Legal Navigation Links */}

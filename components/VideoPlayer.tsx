@@ -29,6 +29,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [subtitleOffset, setSubtitleOffset] = useState(0);
   const [isSubtitlePlaying, setIsSubtitlePlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
   
   const playerWrapperRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +53,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     { name: "SERVER 07", url: type === 'movie' ? `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}` : `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}&season=${season}&episode=${episode}` }
   ];
 
+  // Monitor orientation for "Fake Fullscreen"
+  useEffect(() => {
+    const handleResize = () => {
+      const isCurrentlyLandscape = window.innerWidth > window.innerHeight && window.innerWidth < 932;
+      setIsLandscape(isCurrentlyLandscape);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    handleResize(); // Initial check
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -73,22 +91,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const handleToggleFullscreen = () => {
-    // SAFE ZONE: No ads on fullscreen toggle
     if (!document.fullscreenElement) {
       if (playerWrapperRef.current?.requestFullscreen) {
         playerWrapperRef.current.requestFullscreen();
       } else if ((playerWrapperRef.current as any)?.webkitRequestFullscreen) {
         (playerWrapperRef.current as any).webkitRequestFullscreen();
-      } else if ((playerWrapperRef.current as any)?.msRequestFullscreen) {
-        (playerWrapperRef.current as any).msRequestFullscreen();
       }
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen();
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
-      } else if ((document as any).msExitFullscreen) {
-        (document as any).msExitFullscreen();
       }
     }
   };
@@ -107,14 +118,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handleFsChange);
     document.addEventListener('webkitfullscreenchange', handleFsChange);
-    document.addEventListener('mozfullscreenchange', handleFsChange);
-    document.addEventListener('MSFullscreenChange', handleFsChange);
     
     return () => {
       document.removeEventListener('fullscreenchange', handleFsChange);
       document.removeEventListener('webkitfullscreenchange', handleFsChange);
-      document.removeEventListener('mozfullscreenchange', handleFsChange);
-      document.removeEventListener('MSFullscreenChange', handleFsChange);
     };
   }, []);
 
@@ -129,16 +136,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   return (
     <div className="w-full space-y-5 animate-fade-in-up" id="video-player-section">
-      <div className="p-3 bg-gray-100 dark:bg-gray-900 border border-amber-500/30 rounded-xl flex gap-3 shadow-sm transition-colors">
-        <Info size={16} className="text-amber-500 shrink-0 mt-0.5" />
-        <p className="text-gray-900 dark:text-white text-[10px] md:text-[11px] font-black leading-relaxed uppercase tracking-tighter">
-          Any advertisements included in the services are not ours and are owned by the company hosting the services.
-        </p>
-      </div>
-
       <div 
         ref={playerWrapperRef}
-        className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-200 dark:border-white/5 group"
+        className={`relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-200 dark:border-white/5 group transition-all ${isLandscape ? 'mobile-landscape-fs' : ''}`}
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/95 z-20">
@@ -158,9 +158,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             cues={subtitleCues} 
             currentTime={currentTime} 
             offset={subtitleOffset} 
+            isLandscape={isLandscape}
             style={{
               ...subStyle,
-              fontSize: isFullscreen ? subStyle.fontSize * 1.5 : subStyle.fontSize
+              fontSize: (isFullscreen || isLandscape) ? subStyle.fontSize * 1.5 : subStyle.fontSize
             }} 
           />
         )}
@@ -171,7 +172,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <button
             key={index}
             onClick={() => { 
-                // SAFE ZONE: No ads on server switching
                 setCurrentServer(index); 
                 setIsLoading(true); 
                 setIframeKey(k => k + 1); 
@@ -191,10 +191,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="bg-gray-900 border border-white/10 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-6 shadow-2xl animate-fade-in-up">
            <div className="flex items-center gap-5">
               <button 
-                onClick={() => {
-                    // SAFE ZONE: No ads on subtitle playback
-                    setIsSubtitlePlaying(!isSubtitlePlaying);
-                }}
+                onClick={() => setIsSubtitlePlaying(!isSubtitlePlaying)}
                 className={`w-12 h-12 flex items-center justify-center rounded-full transition-all shadow-xl active:scale-90 transform hover:scale-110 ${isSubtitlePlaying ? 'bg-green-500 text-white' : 'bg-white/10 text-white'}`}
               >
                 {isSubtitlePlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor" className="ml-1"/>}
@@ -208,10 +205,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
            <div className="flex items-center gap-4 bg-black/40 px-6 py-3 rounded-2xl border border-white/5 shadow-inner">
               <button 
-                onClick={() => {
-                    // SAFE ZONE: No ads on sync adjustment
-                    setSubtitleOffset(prev => prev - 0.1);
-                }}
+                onClick={() => setSubtitleOffset(prev => prev - 0.1)}
                 className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl text-white hover:bg-primary transition-all active:scale-90 text-xl font-black"
               >
                 -
@@ -221,10 +215,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                  <span className="text-sm font-black text-white italic tracking-widest">{subtitleOffset >= 0 ? '+' : ''}{subtitleOffset.toFixed(1)}s</span>
               </div>
               <button 
-                onClick={() => {
-                    // SAFE ZONE: No ads on sync adjustment
-                    setSubtitleOffset(prev => prev + 0.1);
-                }}
+                onClick={() => setSubtitleOffset(prev => prev + 0.1)}
                 className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl text-white hover:bg-primary transition-all active:scale-90 text-xl font-black"
               >
                 +
@@ -233,22 +224,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
            <div className="flex items-center gap-3">
               <button 
-                onClick={() => { 
-                    // SAFE ZONE: No ads on sync reset
-                    setSubtitleOffset(0); 
-                    setCurrentTime(0); 
-                }}
+                onClick={() => { setSubtitleOffset(0); setCurrentTime(0); }}
                 className="p-3 bg-white/5 rounded-xl text-gray-400 hover:text-primary transition-all"
                 title="Reset Subtitles"
               >
                 <RotateCcw size={20} />
               </button>
               <button 
-                onClick={() => { 
-                    // SAFE ZONE: No ads on deletion
-                    setSubtitleCues([]); 
-                    setIsSubtitlePlaying(false); 
-                }}
+                onClick={() => { setSubtitleCues([]); setIsSubtitlePlaying(false); }}
                 className="flex items-center gap-2 px-6 py-3 bg-red-500/10 text-red-500 text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95"
               >
                 <Trash2 size={16} /> Delete
@@ -266,19 +249,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div className="flex items-center gap-3">
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".srt,.vtt" className="hidden" />
             <button 
-              onClick={() => {
-                  // SAFE ZONE: No ads on file upload
-                  fileInputRef.current?.click();
-              }}
+              onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-2 px-5 py-2.5 bg-gray-200 dark:bg-white/5 rounded-xl text-[11px] font-black text-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-white/10 transition-all active:scale-95 shadow-sm"
             >
               <Upload size={16}/> Upload SRT
             </button>
             <button 
-              onClick={() => {
-                  // SAFE ZONE: No ads on settings panel open
-                  setActivePanel('subtitles');
-              }}
+              onClick={() => setActivePanel('subtitles')}
               className="p-3 bg-gray-200 dark:bg-white/5 rounded-xl text-gray-700 dark:text-white hover:bg-primary hover:text-white transition-all shadow-md active:scale-90"
               title="Subtitle Settings"
             >
@@ -295,10 +272,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
 
         <button 
-          onClick={() => {
-              // SAFE ZONE: No ads on download links (as per server switching exclusion)
-              window.open(`https://dl.vidsrc.vip/${type}/${tmdbId}${type === 'tv' ? `/${season}/${episode}` : ''}`, '_blank');
-          }}
+          onClick={() => window.open(`https://dl.vidsrc.vip/${type}/${tmdbId}${type === 'tv' ? `/${season}/${episode}` : ''}`, '_blank')}
           className="flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-br from-cyan-600 to-blue-700 text-white font-black uppercase tracking-[0.25em] rounded-2xl shadow-xl shadow-cyan-900/20 text-[11px] hover:scale-[1.03] active:scale-[0.97] transition-all transform"
         >
           <Download size={18} /> Download HD Content
