@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { tmdbService } from '../services/tmdb';
 import { Movie } from '../types';
@@ -29,8 +30,8 @@ const Movies: React.FC = () => {
         setActionMovies(action);
         setDramaMovies(drama);
         setComedyMovies(comedy);
-      } catch (error) {
-        console.error("Failed to load movies data", error);
+      } catch (error: any) {
+        console.error("Failed to load movies data:", error?.message || String(error));
       } finally {
         setLoading(false);
       }

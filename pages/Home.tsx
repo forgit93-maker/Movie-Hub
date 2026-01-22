@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { tmdbService } from '../services/tmdb';
 import { Movie } from '../types';
@@ -26,8 +27,8 @@ const Home: React.FC = () => {
         setTrendingNow(trendDay);
         setPopularMovies(popMov);
         setPopularTV(popTV);
-      } catch (error) {
-        console.error("Failed to load home data", error);
+      } catch (error: any) {
+        console.error("Failed to load home data:", error?.message || String(error));
       } finally {
         setLoading(false);
       }

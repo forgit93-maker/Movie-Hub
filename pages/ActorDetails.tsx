@@ -40,8 +40,8 @@ const ActorDetails: React.FC = () => {
 
           setMovies(uniqueMovies);
           setTvShows(uniqueTv);
-        } catch (error) {
-          console.error("Failed to load actor details", error);
+        } catch (error: any) {
+          console.error("Failed to load actor details:", error?.message || "Unknown error");
         } finally {
           setLoading(false);
         }

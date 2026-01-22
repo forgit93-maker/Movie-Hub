@@ -61,7 +61,7 @@ const Search: React.FC = () => {
             setResults(unifiedResults);
 
         } catch (error: any) {
-            console.error("Unified Search Error:", error?.message || error);
+            console.error("Unified Search Error:", error?.message || "Internal Search Failure");
             setResults([]);
         } finally {
             setLoading(false);

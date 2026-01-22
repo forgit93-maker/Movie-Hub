@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { tmdbService } from '../services/tmdb';
@@ -31,8 +32,8 @@ const Favorites: React.FC = () => {
         // Filter out failed fetches (nulls) and cast to Movie type
         const movies = results.filter(m => m !== null) as unknown as Movie[];
         setWatchlistMovies(movies);
-      } catch (error) {
-        console.error("Error fetching watchlist:", error);
+      } catch (error: any) {
+        console.error("Error fetching watchlist:", error?.message || String(error));
       } finally {
         setIsLoading(false);
       }
