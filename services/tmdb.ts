@@ -29,7 +29,7 @@ export const tmdbService = {
         media_type: type === 'all' ? m.media_type : (type === 'movie' ? 'movie' : 'tv') 
       }));
     } catch (error: any) {
-      console.error('TMDB Trending Error:', error?.message || error);
+      console.error('TMDB Trending Error:', error?.message || 'Unknown network error');
       return [];
     }
   },
@@ -39,7 +39,7 @@ export const tmdbService = {
       const response = await api.get<{ results: Movie[] }>('/search/multi', { params: { query } });
       return response.data.results.filter(item => item.media_type === 'movie' || item.media_type === 'tv');
     } catch (error: any) {
-      console.error('TMDB Search Error:', error?.message || error);
+      console.error('TMDB Search Error:', error?.message || 'Unknown network error');
       return [];
     }
   },
@@ -58,7 +58,7 @@ export const tmdbService = {
       const response = await api.get<SeasonDetails>(`/tv/${tvId}/season/${seasonNumber}`);
       return response.data;
     } catch (error: any) {
-      console.error(`TMDB Season Error:`, error?.message || error);
+      console.error(`TMDB Season Error:`, error?.message || 'Unknown network error');
       return null;
     }
   },
@@ -73,7 +73,7 @@ export const tmdbService = {
       });
       return response.data.results.map(m => ({ ...m, media_type: 'movie' }));
     } catch (error: any) {
-      console.error('TMDB Genre Error:', error?.message || error);
+      console.error('TMDB Genre Error:', error?.message || 'Unknown network error');
       return [];
     }
   },
@@ -88,7 +88,7 @@ export const tmdbService = {
       });
       return response.data.results.map(m => ({ ...m, media_type: 'tv' }));
     } catch (error: any) {
-      console.error('TMDB TV Genre Error:', error?.message || error);
+      console.error('TMDB TV Genre Error:', error?.message || 'Unknown network error');
       return [];
     }
   },
@@ -98,7 +98,7 @@ export const tmdbService = {
       const response = await api.get<{ results: Movie[] }>('/movie/popular');
       return response.data.results.map(m => ({ ...m, media_type: 'movie' }));
     } catch (error: any) {
-      console.error('TMDB Popular Movies Error:', error?.message || error);
+      console.error('TMDB Popular Movies Error:', error?.message || 'Unknown network error');
       return [];
     }
   },
@@ -108,7 +108,7 @@ export const tmdbService = {
        const response = await api.get<{ results: Movie[] }>('/tv/popular');
        return response.data.results.map(m => ({ ...m, media_type: 'tv' }));
      } catch (error: any) {
-       console.error('TMDB Popular TV Error:', error?.message || error);
+       console.error('TMDB Popular TV Error:', error?.message || 'Unknown network error');
        return [];
      }
   },
@@ -118,7 +118,7 @@ export const tmdbService = {
       const response = await api.get<{ results: Movie[] }>(`/${type}/top_rated`);
       return response.data.results.map(m => ({ ...m, media_type: type }));
     } catch (error: any) {
-      console.error(`TMDB Top Rated Error:`, error?.message || error);
+      console.error(`TMDB Top Rated Error:`, error?.message || 'Unknown network error');
       return [];
     }
   },

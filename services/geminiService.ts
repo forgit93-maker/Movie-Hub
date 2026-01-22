@@ -21,7 +21,7 @@ export const initGemini = () => {
     });
   } catch (error: any) {
     // Extract message to avoid circular structure errors
-    console.error("Failed to initialize Gemini:", error?.message || error);
+    console.error("Failed to initialize Gemini:", error?.message || String(error));
   }
 };
 
@@ -40,7 +40,7 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
     return response.text || "I'm sorry, I couldn't generate a response.";
   } catch (error: any) {
     // Extract message to avoid circular structure errors
-    console.error("Gemini Error:", error?.message || error);
+    console.error("Gemini Error:", error?.message || String(error));
     return "I had some trouble thinking about that. Try again?";
   }
 };
