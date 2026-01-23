@@ -111,24 +111,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const googleSignIn = async () => {
     try {
-        const result = await signInWithPopup(auth, googleProvider);
-        const email = result.user.email;
-        
-        if (email && !email.toLowerCase().endsWith('@gmail.com')) {
-          const userToDelete = auth.currentUser;
-          if (userToDelete) {
-             await userToDelete.delete().catch(async () => {
-                 await signOut(auth);
-             });
-          }
-          throw new Error("Only @gmail.com addresses are allowed.");
-        }
+        // Trigger the Google Sign-In Popup
+        // The user state update is handled by the onAuthStateChanged listener above
+        await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
         if (error.code === 'auth/popup-closed-by-user') {
             throw new Error("Sign in cancelled.");
         }
         // Throw a plain error with message instead of the raw Firebase error object
-        throw new Error(error?.message || "Google sign-in failed.");
+        throw new Error(error?.message || "Google sign-in failed. Please try again.");
     }
   };
 
