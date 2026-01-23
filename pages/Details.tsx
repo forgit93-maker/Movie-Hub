@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import * as ReactRouterDom from 'react-router-dom';
 import YouTube from 'react-youtube';
@@ -267,6 +266,7 @@ export default function Details() {
         {showPlayer && (
             <section className="pt-6 md:pt-10 scroll-mt-24" id="video-player-section">
                 
+                {/* Advisory and Tips - MOVED ABOVE VIDEO PLAYER */}
                 <div className="max-w-4xl mx-auto mb-6 md:mb-10 space-y-4">
                    {showTip && (
                       <div className="relative p-4 bg-black/60 backdrop-blur-xl border border-primary/40 rounded-2xl flex gap-4 shadow-2xl animate-fade-in-up">
@@ -360,7 +360,7 @@ export default function Details() {
               <div className="flex gap-3 md:gap-5">
                  <button 
                   onClick={handleFavorite}
-                  className="p-3 md:p-4 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full text-gray-600 dark:text-white hover:text-primary transition-all active:scale-90 shadow-sm"
+                  className="p-3 md:p-4 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full text-gray-600 dark:text-white transition-all active:scale-90 shadow-sm"
                 >
                   <Heart 
                     size={20} 

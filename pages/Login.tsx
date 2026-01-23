@@ -216,6 +216,7 @@ const Login: React.FC = () => {
         </div>
 
         <button 
+          type="button"
           onClick={handleGoogleSignIn}
           className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-bold py-3.5 rounded-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-[1.02] shadow-[0_0_15px_rgba(255,255,255,0.1)] active:scale-[0.98]"
         >
