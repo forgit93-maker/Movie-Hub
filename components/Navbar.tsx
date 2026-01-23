@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Sun, Moon, X } from 'lucide-react';
@@ -21,12 +20,43 @@ const Navbar: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDark, setIsDark] = useState(true);
   
+  // Typewriter State
+  const fullLogoText = "MOVIE HUB";
+  const [logoDisplayText, setLogoDisplayText] = useState(fullLogoText);
+  
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useStore();
+
+  // Logo Typewriter Animation Logic
+  useEffect(() => {
+    const runTypewriter = () => {
+      let i = 0;
+      setLogoDisplayText(""); // Clear current display
+      
+      const typingInterval = setInterval(() => {
+        setLogoDisplayText(fullLogoText.slice(0, i + 1));
+        i++;
+        if (i >= fullLogoText.length) {
+          clearInterval(typingInterval);
+        }
+      }, 150); // 150ms per letter as requested
+    };
+
+    // Initial entrance animation after a short delay
+    const initialDelay = setTimeout(runTypewriter, 2000);
+
+    // Repeat every 2 minutes (120,000 ms)
+    const cycleInterval = setInterval(runTypewriter, 120000);
+
+    return () => {
+      clearTimeout(initialDelay);
+      clearInterval(cycleInterval);
+    };
+  }, []);
 
   // Real-time Search Logic with Debounce
   useEffect(() => {
@@ -36,12 +66,11 @@ const Navbar: React.FC = () => {
       if (searchQuery.trim()) {
         navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       }
-    }, 500); // Increased debounce slightly to allow typing
+    }, 500); 
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, navigate]);
+  }, [searchQuery, navigate, location.pathname]);
 
-  // Handle Enter Key
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
         if (searchQuery.trim()) {
@@ -51,7 +80,6 @@ const Navbar: React.FC = () => {
     }
   };
 
-  // Sync state if URL changes externally
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const q = params.get('q');
@@ -60,7 +88,7 @@ const Navbar: React.FC = () => {
     } else if (!location.pathname.includes('/search')) {
       setSearchQuery('');
     }
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, searchQuery]);
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains('dark'));
@@ -123,7 +151,19 @@ const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex-shrink-0">
-            <Link to="/" onClick={triggerPopunder} className="text-primary font-bold text-2xl tracking-tighter hover:opacity-90 transition-opacity">MOVIE HUB</Link>
+            <Link 
+              to="/" 
+              onClick={triggerPopunder} 
+              className="text-primary font-bold text-2xl tracking-tighter hover:opacity-90 transition-opacity flex items-center relative h-8 overflow-hidden"
+            >
+              {/* Invisible spacer to reserve exact width and prevent layout jumping */}
+              <span className="invisible pointer-events-none whitespace-pre" aria-hidden="true">{fullLogoText}</span>
+              
+              {/* Animated Text Layer */}
+              <span className="absolute left-0 top-0 h-full flex items-center">
+                {logoDisplayText}
+              </span>
+            </Link>
           </div>
 
           <div className="hidden md:block">

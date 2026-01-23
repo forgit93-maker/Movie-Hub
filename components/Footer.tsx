@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Facebook, Instagram, Youtube, Music2, Mail, X, Shield, FileText, Info } from 'lucide-react';

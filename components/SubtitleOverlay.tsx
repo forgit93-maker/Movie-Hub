@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { SubtitleCue } from '../utils/subtitleHelper';
 import { SubtitleStyle } from '../types';
@@ -39,8 +38,8 @@ const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ cues, currentTime, of
 
   return (
     <div 
-      className={`absolute inset-x-0 ${isLandscape ? 'bottom-[5%] fixed' : 'bottom-[10%]'} flex flex-col items-center justify-end pointer-events-none p-4`}
-      style={{ zIndex: 2147483647 }}
+      className={`absolute inset-x-0 flex flex-col items-center justify-end pointer-events-none p-4 ${isLandscape ? 'fixed bottom-[10px]' : 'bottom-[10%]'}`}
+      style={{ zIndex: 9999999 }}
       aria-hidden="true"
     >
       <div style={{ opacity: style.opacity }}>
