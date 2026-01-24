@@ -145,15 +145,19 @@ const Account: React.FC = () => {
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
 
-      console.log('Push Subscription:', JSON.stringify(subscription));
+      // Avoid JSON.stringify on complex objects in production logs
+      console.log('Push Subscription Active:', subscription.endpoint);
       setPushEnabled(true);
       alert("Notifications enabled successfully! You will receive updates for new releases.");
       
       // Note: In a production app, send 'subscription' to your backend here.
 
     } catch (err: any) {
-      console.error('Failed to subscribe to push:', err);
-      if (err.message && err.message.includes('scriptURL')) {
+      // Prevent circular JSON error when logging complex error objects
+      const errorMessage = err?.message || String(err);
+      console.error('Failed to subscribe to push:', errorMessage);
+      
+      if (errorMessage.includes('scriptURL') || errorMessage.includes('MIME type')) {
         alert("Configuration Error: The Service Worker script could not be loaded. Please ensure 'sw.js' is in the public folder.");
       } else {
         alert("Failed to enable notifications. Please check your browser permission settings.");
