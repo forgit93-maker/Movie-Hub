@@ -60,6 +60,7 @@ const Navbar: React.FC = () => {
 
   // Real-time Search Logic with Debounce
   useEffect(() => {
+    // Prevent navigating if query is empty unless we are already on search page (clearing search)
     if (!searchQuery.trim() && !location.pathname.includes('/search')) return;
 
     const delayDebounceFn = setTimeout(() => {
@@ -76,25 +77,34 @@ const Navbar: React.FC = () => {
         if (searchQuery.trim()) {
              triggerPopunder();
              navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+             setIsSearchOpen(false); // Close mobile search on enter
         }
     }
   };
 
+  // Sync state with URL params (One-way binding on mount/navigation)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const q = params.get('q');
-    if (location.pathname.includes('/search') && q !== searchQuery) {
-      if (q) setSearchQuery(q);
-    } else if (!location.pathname.includes('/search')) {
-      setSearchQuery('');
+    
+    // Only update state if on search page and query differs
+    if (location.pathname.includes('/search')) {
+       if (q && q !== searchQuery) {
+         setSearchQuery(q);
+       }
+    } else {
+       // Clear search bar when navigating away from search page
+       setSearchQuery('');
     }
-  }, [location.pathname, location.search, searchQuery]);
+    // IMPORTANT: Removed searchQuery from dependencies to prevent input clearing while typing
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains('dark'));
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 0);
-      if (isSearchOpen) setIsSearchOpen(false);
+      // Close mobile search on scroll
+      if (isSearchOpen && window.scrollY > 50) setIsSearchOpen(false);
     };
 
     const handleClickOutside = (event: MouseEvent) => {
@@ -129,8 +139,8 @@ const Navbar: React.FC = () => {
     triggerPopunder();
     if (isDesktopSearchOpen) {
       if (searchQuery.trim()) {
-        setSearchQuery('');
-        setIsDesktopSearchOpen(false);
+        // If there is a query, execute search explicitly
+        navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       } else {
         setIsDesktopSearchOpen(false);
       }
